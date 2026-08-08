@@ -5,7 +5,9 @@ import tempfile
 import unittest
 
 from halyk_agent.benchmark import (
+    CATEGORY_PARTITION_POLICY,
     DocumentCatalog,
+    SYSTEM_PROMPT,
     _compact_document,
     _discover_scan_image_groups,
     _ocr_account_hint,
@@ -18,6 +20,30 @@ from halyk_agent.extraction.pipeline import (
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_category_partition_policy_requires_primary_evidence(self) -> None:
+        self.assertIn("explicit primary ledger category", CATEGORY_PARTITION_POLICY)
+        self.assertIn("row-specific reclassification", CATEGORY_PARTITION_POLICY)
+        self.assertIn("generic reference to `related expenses`", CATEGORY_PARTITION_POLICY)
+        self.assertIn("social and other taxes", CATEGORY_PARTITION_POLICY)
+        self.assertIn("insurance premiums", CATEGORY_PARTITION_POLICY)
+        self.assertIn("travel costs", CATEGORY_PARTITION_POLICY)
+        self.assertIn("mutually exclusive covenant buckets", CATEGORY_PARTITION_POLICY)
+        self.assertIn("transaction-ID sets for duplicates", CATEGORY_PARTITION_POLICY)
+
+    def test_category_partition_policy_is_general_not_fixture_specific(self) -> None:
+        self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
+        self.assertIn(CATEGORY_PARTITION_POLICY, SYSTEM_PROMPT)
+
+    def test_compliant_decisions_cannot_claim_counterfactual_evidence(self) -> None:
+        self.assertIn(
+            "For every COMPLIANT result, `evidence_txn_id` must be null",
+            SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "do not use a hypothetical inclusion or reclassification",
+            SYSTEM_PROMPT,
+        )
+
     def test_document_catalog_retrieves_by_account_id(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

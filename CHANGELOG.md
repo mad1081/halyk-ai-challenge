@@ -23,6 +23,30 @@ Five focused tests cover derived rates, exact reference matches, signs,
 conflicts, missing links, and European number separators. Full paid stability
 evaluation remains pending.
 
+### Experiment — evidence-backed, disjoint category partitions
+
+**What changed:** Replaced the ambiguous personnel-category exception with a
+general evidence hierarchy. Transactions retain their explicit primary ledger
+category unless the governing definition names that category or a final audit
+document supplies a row-specific classification. The solver must build
+mutually exclusive transaction buckets and check for duplicate transaction IDs
+before calculating; named numerator or overhead rows cannot also enter
+Operating Expenses or EBITDA unless the formula explicitly requires overlap.
+Compliant decisions now always return a null evidence transaction.
+
+**Why:** Repeated public runs produced several internally consistent answers
+from the same inputs solely because the model sometimes treated social tax,
+insurance, or travel as personnel expense. A separate flaky calculation also
+counted a named category in both its direct bucket and Operating Expenses. In
+both cases the arithmetic was correct for an unstable transaction partition.
+
+**Expected result:** Category membership becomes traceable to source evidence,
+personnel and competing primary categories no longer overlap by inference, and
+each transaction contributes at most once to a formula unless overlap is
+expressly required. This branch has no paid-API result yet; it must beat the
+recorded stability baseline without regressing previously stable cells before
+merge.
+
 ### v2.3 — currency/category stability baseline
 
 **What changed:** Added an explicit all-currency check and prohibited silently
