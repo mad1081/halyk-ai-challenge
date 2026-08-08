@@ -19,6 +19,10 @@ All notable implementation changes and experiment decisions are recorded here.
   Anthropic Messages APIs.
 - Secret-safe `llm-status` CLI command and mocked provider request tests.
 
+### Changed
+
+- Default Anthropic model changed to `claude-sonnet-5` for routine agent runs.
+
 ## [0.1.0] - 2026-08-08
 
 ### Added

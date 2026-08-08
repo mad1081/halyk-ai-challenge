@@ -124,8 +124,8 @@ class LlmSettings:
             providers["anthropic"] = ProviderSettings(
                 name="anthropic",
                 api_key=anthropic_key,
-                model=merged.get("ANTHROPIC_MODEL", "claude-fable-5").strip()
-                or "claude-fable-5",
+                model=merged.get("ANTHROPIC_MODEL", "claude-sonnet-5").strip()
+                or "claude-sonnet-5",
                 base_url=merged.get(
                     "ANTHROPIC_BASE_URL", "https://api.anthropic.com"
                 ).strip().rstrip("/"),

@@ -68,6 +68,7 @@ class LlmConfigurationTests(unittest.TestCase):
             "missing.env", environ={"ANTHROPIC_API_KEY": "secret"}
         )
         self.assertEqual(settings.select().name, "anthropic")
+        self.assertEqual(settings.select().model, "claude-sonnet-5")
 
     def test_priority_decides_when_both_keys_exist(self) -> None:
         settings = LlmSettings.from_env(
