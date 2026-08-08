@@ -20,6 +20,11 @@ All notable implementation changes and experiment decisions are recorded here.
 - Configurable concurrent scenario execution (`--concurrency`, default 7) for
   both OpenAI and Anthropic.
 - Thread-safety tests for concurrent artifact/event logging.
+- Repeated stability evaluation with shared OCR, parallel providers, bounded
+  per-provider concurrency, independent submissions, and per-cell answer/score
+  distributions.
+- Diagnostic clean-score exclusions that leave the official proxy untouched.
+- Bounded retry backoff with jitter for rate limits and transient API failures.
 
 ### Changed
 

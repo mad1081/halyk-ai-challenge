@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import random
 import time
 from typing import Any
 
@@ -476,6 +477,8 @@ def _execute_scenario(
     user_prompt: str,
     retries: int,
     queued_at: float,
+    repetition: int | None = None,
+    artifact_directory: Path = Path("decisions"),
 ) -> dict[str, Any]:
     """Run one scenario in an isolated provider client inside a worker thread."""
 
@@ -486,6 +489,7 @@ def _execute_scenario(
         "scenario_started",
         scenario=scenario,
         scenario_index=scenario_index,
+        repetition=repetition,
         started_at=scenario_started_at,
         queue_wait_seconds=queue_wait,
         queue_wait_minutes=round(queue_wait / 60, 4),
@@ -506,6 +510,7 @@ def _execute_scenario(
             stage="covenant_analysis",
             scenario=scenario,
             scenario_index=scenario_index,
+            repetition=repetition,
             attempt=attempt,
         )
         logger.event(
@@ -514,6 +519,7 @@ def _execute_scenario(
             model=model,
             scenario=scenario,
             scenario_index=scenario_index,
+            repetition=repetition,
             attempt=attempt,
             started_at=call_started_at,
         )
@@ -548,14 +554,33 @@ def _execute_scenario(
                 "error": str(exc),
             }
             attempts.append(attempt_timing)
+            retry_delay = 0.0
+            if attempt <= retries:
+                retry_delay = _retry_delay_seconds(exc, attempt)
+                attempt_timing["retry_delay_seconds"] = retry_delay
+                attempt_timing["retry_delay_minutes"] = round(retry_delay / 60, 4)
             logger.event(
                 "model_call_failed",
                 provider=provider_name,
                 model=model,
                 scenario=scenario,
                 scenario_index=scenario_index,
+                repetition=repetition,
                 **attempt_timing,
             )
+            if retry_delay:
+                logger.event(
+                    "retry_backoff_started",
+                    provider=provider_name,
+                    model=model,
+                    scenario=scenario,
+                    scenario_index=scenario_index,
+                    repetition=repetition,
+                    attempt=attempt,
+                    delay_seconds=retry_delay,
+                    delay_minutes=round(retry_delay / 60, 4),
+                )
+                time.sleep(retry_delay)
             continue
 
         call_elapsed = round(time.perf_counter() - call_started, 4)
@@ -576,6 +601,7 @@ def _execute_scenario(
             model=model,
             scenario=scenario,
             scenario_index=scenario_index,
+            repetition=repetition,
             **attempt_timing,
         )
         break
@@ -599,6 +625,7 @@ def _execute_scenario(
             model=model,
             scenario=scenario,
             scenario_index=scenario_index,
+            repetition=repetition,
             error_type=type(error).__name__,
             error=str(error),
             **{key: value for key, value in timing.items() if key != "attempts"},
@@ -612,7 +639,7 @@ def _execute_scenario(
         }
 
     decisions_path = logger.artifact(
-        Path("decisions") / f"{scenario}.json",
+        artifact_directory / f"{scenario}.json",
         {
             "provider": result.provider,
             "model": result.model,
@@ -628,6 +655,7 @@ def _execute_scenario(
         model=model,
         scenario=scenario,
         scenario_index=scenario_index,
+        repetition=repetition,
         response_id=result.response_id,
         usage=result.usage,
         artifact=str(decisions_path.relative_to(logger.run_dir)),
@@ -636,10 +664,35 @@ def _execute_scenario(
     )
     return {
         "scenario": scenario,
+        "repetition": repetition,
         "decisions": result.value["decisions"],
         "usage": result.usage,
         "timing": timing,
     }
+
+
+def _retry_delay_seconds(error: Exception, attempt: int) -> float:
+    """Bounded exponential backoff with jitter for transient API failures."""
+
+    message = str(error).casefold()
+    transient = any(
+        marker in message
+        for marker in (
+            "http 429",
+            "rate limit",
+            "overloaded",
+            "http 500",
+            "http 502",
+            "http 503",
+            "http 504",
+            "timed out",
+        )
+    )
+    if transient:
+        return round(min(60.0, (2**attempt) + random.random() * 2.0), 4)
+    # Structured-output truncation/parsing can be stochastic; retry once without
+    # creating a thundering herd of immediate identical requests.
+    return round(0.5 + random.random(), 4)
 
 
 def _ocr_images(

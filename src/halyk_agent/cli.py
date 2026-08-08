@@ -19,6 +19,7 @@ from halyk_agent.extraction.pipeline import extract_documents
 from halyk_agent.ledger import LedgerError, LedgerIndex
 from halyk_agent.llm import LlmConfigurationError, LlmSettings
 from halyk_agent.submission import create_draft, write_json
+from halyk_agent.stability import run_stability_benchmark
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -72,6 +73,36 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("openai", "anthropic"),
         default=("openai", "anthropic"),
     )
+
+    stability_parser = subparsers.add_parser(
+        "stability-eval",
+        help="repeat the frozen solver baseline and report per-cell stability",
+    )
+    stability_parser.add_argument("dataset", type=Path)
+    stability_parser.add_argument("--documents-dir", type=Path, required=True)
+    stability_parser.add_argument("--scan-images-dir", type=Path)
+    stability_parser.add_argument("--output-dir", type=Path, required=True)
+    stability_parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    stability_parser.add_argument(
+        "--providers",
+        nargs="+",
+        choices=("openai", "anthropic"),
+        default=("openai", "anthropic"),
+    )
+    stability_parser.add_argument("--repetitions", type=int, default=10)
+    stability_parser.add_argument("--retries", type=int, default=2)
+    stability_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=35,
+        help="maximum simultaneous solver calls per provider (default: 35)",
+    )
+    stability_parser.add_argument(
+        "--exclude-cell",
+        action="append",
+        default=[],
+        help="known bad public cell to omit from clean score, e.g. P4/6.3",
+    )
     benchmark_parser.add_argument("--retries", type=int, default=1)
     benchmark_parser.add_argument(
         "--concurrency",
@@ -97,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
             return _llm_status(args)
         if args.command == "live-eval":
             return _live_eval(args)
+        if args.command == "stability-eval":
+            return _stability_eval(args)
     except (
         BenchmarkError,
         DatasetError,
@@ -213,6 +246,37 @@ def _live_eval(args) -> int:
             "concurrency": summary["concurrency"],
             "usage": summary["usage"],
             "evaluation": summary["evaluation"],
+        }
+        for name, summary in comparison["providers"].items()
+    }
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _stability_eval(args) -> int:
+    comparison = run_stability_benchmark(
+        dataset=args.dataset,
+        documents_dir=args.documents_dir,
+        output_dir=args.output_dir,
+        providers=tuple(args.providers),
+        env_file=args.env_file,
+        scan_images_dir=args.scan_images_dir,
+        repetitions=args.repetitions,
+        retries=args.retries,
+        concurrency=args.concurrency,
+        excluded_cells=tuple(args.exclude_cell),
+    )
+    output = {
+        name: {
+            "model": summary["model"],
+            "elapsed_seconds": summary["elapsed_seconds"],
+            "elapsed_minutes": summary["elapsed_minutes"],
+            "repetitions": summary["repetitions"],
+            "completed_solver_tasks": summary["completed_solver_tasks"],
+            "total_solver_tasks": summary["total_solver_tasks"],
+            "usage": summary["usage"],
+            "score_statistics": summary["score_statistics"],
+            "clean_score_statistics": summary["clean_score_statistics"],
         }
         for name, summary in comparison["providers"].items()
     }

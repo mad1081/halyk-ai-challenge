@@ -99,6 +99,26 @@ every API attempt, OCR, queue wait, scenario, provider run, and whole benchmark.
 Authorization headers are redacted; document contents and model conversations
 are intentionally retained for audit, so do not publish `runs/`.
 
+For a statistically meaningful frozen baseline, repeat the same retrieval and
+prompt while sharing one OCR transcript per provider:
+
+```powershell
+halyk-agent stability-eval .\agentic-bank-public `
+  --documents-dir .\runs\public\documents `
+  --scan-images-dir .\runs\public\scan-pages `
+  --output-dir .\runs\evals\stability-v1 `
+  --providers openai anthropic `
+  --repetitions 10 `
+  --concurrency 35 `
+  --exclude-cell P4/6.3
+```
+
+OpenAI and Anthropic run in parallel, with `--concurrency` applied separately to
+each provider. `stability.json` reports score distribution, answer distribution,
+and `0/N` stable failures versus flaky cells. Exclusions never change the normal
+proxy score; they produce a second diagnostic score for confirmed public-key
+defects.
+
 ## PDF extraction
 
 The repository supports a cascade instead of trusting one parser:
