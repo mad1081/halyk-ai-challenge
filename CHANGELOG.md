@@ -20,7 +20,7 @@ All notable implementation changes and experiment decisions are recorded here.
 - Ledger parsing and target scenario-to-account mapping.
 - Reproducible MVP run manifests and draft submission generation.
 - Isolated AnyDoc, `pdftotext`, and optional OCRmyPDF extraction cascade.
+- Optional Docling + RapidOCR scanned/mixed-PDF fallback.
 - Extraction quality gate and attempt manifest.
 - Public ground-truth evaluation harness.
 - Unit tests and project documentation.
-

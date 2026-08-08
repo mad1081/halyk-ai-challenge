@@ -10,6 +10,7 @@ from halyk_agent.evaluation import evaluate_submission
 from halyk_agent.extraction.backends import (
     AnyDocExtractor,
     CascadeExtractor,
+    DoclingExtractor,
     OcrMyPdfExtractor,
     PdfToTextExtractor,
 )
@@ -41,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
     extract_parser.add_argument("--timeout", type=float, default=90.0)
     extract_parser.add_argument("--anydoc-python", type=Path)
     extract_parser.add_argument("--no-anydoc", action="store_true")
+    extract_parser.add_argument("--no-docling", action="store_true")
+    extract_parser.add_argument("--docling-command", default="docling")
     extract_parser.add_argument("--no-ocr", action="store_true")
 
     eval_parser = subparsers.add_parser("evaluate", help="score a submission on public truth")
@@ -120,6 +123,8 @@ def _extract(args) -> int:
         executable = args.anydoc_python or Path(sys.executable)
         backends.append(AnyDocExtractor(executable))
     backends.append(PdfToTextExtractor())
+    if not args.no_docling:
+        backends.append(DoclingExtractor(args.docling_command))
     if not args.no_ocr:
         backends.append(OcrMyPdfExtractor())
     manifest = extract_documents(
@@ -146,4 +151,3 @@ def _evaluate(args) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

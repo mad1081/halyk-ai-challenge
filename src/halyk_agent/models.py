@@ -28,6 +28,7 @@ class TextQuality:
     characters: int
     lines: int
     alphanumeric_ratio: float
+    printable_ratio: float
     replacement_ratio: float
     reasons: tuple[str, ...]
 

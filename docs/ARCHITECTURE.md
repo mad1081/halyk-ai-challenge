@@ -41,6 +41,8 @@ The MVP backends are:
 
 - **AnyDoc:** fast Markdown for text-native PDFs, isolated in a subprocess.
 - **pdftotext:** independent native fallback for text-native PDFs.
+- **Docling + RapidOCR:** layout/table-aware local fallback for scanned and
+  mixed PDFs in Russian, Kazakh and English.
 - **OCRmyPDF:** optional local OCR pass for scanned/mixed PDFs, followed by
   `pdftotext`.
 
@@ -72,4 +74,3 @@ will include:
 - Never interpolate document paths into a shell string.
 - Keep API keys in environment variables and out of prompts, logs and Git.
 - Do not send the public `ground_truth.json` to the solving model.
-

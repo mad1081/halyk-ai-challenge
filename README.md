@@ -48,8 +48,8 @@ The repository supports a cascade instead of trusting one parser:
 
 1. AnyDoc in a separate Python process with a timeout.
 2. `pdftotext` for a second native text extraction attempt.
-3. OCRmyPDF plus `pdftotext` for scanned or low-quality documents, when both
-   commands are installed.
+3. Docling plus RapidOCR for scanned/mixed documents and complex tables.
+4. OCRmyPDF plus `pdftotext` as a last local fallback, when installed.
 
 Use the already isolated AnyDoc environment:
 
@@ -63,9 +63,22 @@ halyk-agent extract .\agentic-bank-public `
 Process every PDF by omitting `--limit`. All generated Markdown and manifests
 belong under `runs/`, which is intentionally ignored by Git.
 
+For the recommended scanned-PDF fallback, use a separate Python 3.12
+environment and pre-download models before the private round:
+
+```powershell
+uv venv .venv-docling --python 3.12
+uv pip install --python .\.venv-docling\Scripts\python.exe docling rapidocr onnxruntime
+.\.venv-docling\Scripts\docling-tools.exe models download layout tableformer rapidocr `
+  --rapidocr-backend-lang onnxruntime:cyrillic
+```
+
+Then put `.venv-docling\Scripts` on `PATH` for the run, or pass the full
+Docling executable through `--docling-command`.
+
 AnyDoc 0.1.6 is treated as an untrusted parser dependency and is always run in
 a child process. See [architecture notes](docs/ARCHITECTURE.md) for the reason
-and planned OCR strategy.
+and [OCR research](docs/OCR_RESEARCH.md) for the tiered fallback strategy.
 
 ## Evaluation
 
@@ -94,4 +107,3 @@ python -m unittest discover -s tests -v
 Create an experiment branch only when an actual experiment starts. Record its
 dataset fingerprint, configuration and score in `docs/EXPERIMENTS.md` before
 merging a winner into `main`.
-

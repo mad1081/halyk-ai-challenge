@@ -92,6 +92,63 @@ class PdfToTextExtractor:
 
 
 @dataclass(slots=True)
+class DoclingExtractor:
+    executable: str = "docling"
+    ocr_language: str = "cyrillic"
+    ocr_mode: str = "pdf_aware_layout_regions"
+    name: str = "docling-rapidocr"
+
+    def available(self) -> bool:
+        return shutil.which(self.executable) is not None
+
+    def extract(self, pdf_path: Path, timeout: float) -> str:
+        with tempfile.TemporaryDirectory(prefix="halyk-docling-") as temporary:
+            output_dir = Path(temporary) / "output"
+            output_dir.mkdir()
+            completed = subprocess.run(
+                [
+                    self.executable,
+                    "convert",
+                    str(pdf_path),
+                    "--to",
+                    "md",
+                    "--pipeline",
+                    "standard",
+                    "--ocr-engine",
+                    "rapidocr",
+                    "--ocr-lang",
+                    self.ocr_language,
+                    "--ocr-mode",
+                    self.ocr_mode,
+                    "--table-mode",
+                    "accurate",
+                    "--document-timeout",
+                    str(max(1, int(timeout))),
+                    "--output",
+                    str(output_dir),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout + 30,
+                check=False,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    (completed.stderr or completed.stdout).strip()
+                    or f"docling exited with {completed.returncode}"
+                )
+            expected = output_dir / f"{pdf_path.stem}.md"
+            markdown_paths = [expected] if expected.is_file() else list(output_dir.rglob("*.md"))
+            if len(markdown_paths) != 1:
+                raise RuntimeError(
+                    f"Docling produced {len(markdown_paths)} Markdown files; expected exactly one"
+                )
+            return markdown_paths[0].read_text(encoding="utf-8", errors="replace")
+
+
+@dataclass(slots=True)
 class OcrMyPdfExtractor:
     ocrmypdf_executable: str = "ocrmypdf"
     pdftotext_executable: str = "pdftotext"
@@ -200,4 +257,3 @@ class CascadeExtractor:
             f"{attempt.backend}: {attempt.status} {attempt.error}" for attempt in attempts
         )
         raise RuntimeError(f"No extractor produced output for {pdf_path.name}: {errors}")
-
