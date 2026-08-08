@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 
+from halyk_agent.benchmark import BenchmarkError, run_live_benchmark
 from halyk_agent.dataset import DatasetError, dataset_fingerprint, materialize_dataset
 from halyk_agent.evaluation import evaluate_submission
 from halyk_agent.extraction.backends import (
@@ -56,6 +57,28 @@ def build_parser() -> argparse.ArgumentParser:
         "llm-status", help="show the selected LLM provider without calling its API"
     )
     llm_parser.add_argument("--env-file", type=Path, default=Path(".env"))
+
+    benchmark_parser = subparsers.add_parser(
+        "live-eval", help="run the covenant agent and score both live LLM providers"
+    )
+    benchmark_parser.add_argument("dataset", type=Path)
+    benchmark_parser.add_argument("--documents-dir", type=Path, required=True)
+    benchmark_parser.add_argument("--scan-images-dir", type=Path)
+    benchmark_parser.add_argument("--output-dir", type=Path, required=True)
+    benchmark_parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    benchmark_parser.add_argument(
+        "--providers",
+        nargs="+",
+        choices=("openai", "anthropic"),
+        default=("openai", "anthropic"),
+    )
+    benchmark_parser.add_argument("--retries", type=int, default=1)
+    benchmark_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=7,
+        help="number of scenario requests to run concurrently (default: 7)",
+    )
     return parser
 
 
@@ -72,7 +95,15 @@ def main(argv: list[str] | None = None) -> int:
             return _evaluate(args)
         if args.command == "llm-status":
             return _llm_status(args)
-    except (DatasetError, LedgerError, LlmConfigurationError, ValueError) as exc:
+        if args.command == "live-eval":
+            return _live_eval(args)
+    except (
+        BenchmarkError,
+        DatasetError,
+        LedgerError,
+        LlmConfigurationError,
+        ValueError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 2
@@ -160,6 +191,32 @@ def _evaluate(args) -> int:
 def _llm_status(args) -> int:
     settings = LlmSettings.from_env(args.env_file)
     print(json.dumps(settings.public_summary(), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _live_eval(args) -> int:
+    comparison = run_live_benchmark(
+        dataset=args.dataset,
+        documents_dir=args.documents_dir,
+        output_dir=args.output_dir,
+        providers=tuple(args.providers),
+        env_file=args.env_file,
+        scan_images_dir=args.scan_images_dir,
+        retries=args.retries,
+        concurrency=args.concurrency,
+    )
+    output = {
+        name: {
+            "model": summary["model"],
+            "elapsed_seconds": summary["elapsed_seconds"],
+            "elapsed_minutes": summary["elapsed_minutes"],
+            "concurrency": summary["concurrency"],
+            "usage": summary["usage"],
+            "evaluation": summary["evaluation"],
+        }
+        for name, summary in comparison["providers"].items()
+    }
+    print(json.dumps(output, ensure_ascii=False, indent=2))
     return 0
 
 

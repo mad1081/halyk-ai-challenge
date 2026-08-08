@@ -4,13 +4,6 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
-### Planned
-
-- Structured document catalog and version resolver.
-- Covenant extraction prompts and solver orchestration.
-- Deterministic financial calculation engine.
-- End-to-end public-dataset evaluation.
-
 ### Added
 
 - `.env` configuration for either `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
@@ -18,10 +11,23 @@ All notable implementation changes and experiment decisions are recorded here.
 - Provider-neutral strict JSON Schema client for OpenAI Responses and
   Anthropic Messages APIs.
 - Secret-safe `llm-status` CLI command and mocked provider request tests.
+- End-to-end `live-eval` covenant agent with account-based document retrieval,
+  vision OCR for scan pages, strict structured decisions, submission generation,
+  and public-ground-truth scoring.
+- Full prompt, redacted request, response, decision, and append-only JSONL logs.
+- Per-attempt, per-scenario, OCR, queue, provider, and benchmark timings in both
+  seconds and minutes.
+- Configurable concurrent scenario execution (`--concurrency`, default 7) for
+  both OpenAI and Anthropic.
+- Thread-safety tests for concurrent artifact/event logging.
 
 ### Changed
 
 - Default Anthropic model changed to `claude-sonnet-5` for routine agent runs.
+- Default API timeout increased from 180 to 600 seconds after concurrent Sonnet
+  calls legitimately exceeded three minutes.
+- Provider-specific output ceilings can be set with
+  `OPENAI_MAX_OUTPUT_TOKENS` and `ANTHROPIC_MAX_OUTPUT_TOKENS`.
 
 ## [0.1.0] - 2026-08-08
 

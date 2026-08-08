@@ -8,6 +8,7 @@ from halyk_agent.llm.config import (
 )
 from halyk_agent.llm.providers import (
     AnthropicProvider,
+    InputImage,
     LlmApiError,
     LlmResult,
     OpenAIProvider,
@@ -17,6 +18,7 @@ from halyk_agent.llm.providers import (
 
 __all__ = [
     "AnthropicProvider",
+    "InputImage",
     "LlmApiError",
     "LlmConfigurationError",
     "LlmResult",

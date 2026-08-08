@@ -7,6 +7,7 @@ from typing import Any
 
 from halyk_agent.llm import (
     AnthropicProvider,
+    InputImage,
     LlmConfigurationError,
     LlmSettings,
     OpenAIProvider,
@@ -116,6 +117,21 @@ class LlmConfigurationTests(unittest.TestCase):
         )
         self.assertNotIn("do-not-print-this", repr(settings))
 
+    def test_provider_specific_output_limits_and_safe_timeout_default(self) -> None:
+        settings = LlmSettings.from_env(
+            "missing.env",
+            environ={
+                "OPENAI_API_KEY": "openai-secret",
+                "ANTHROPIC_API_KEY": "anthropic-secret",
+                "OPENAI_MAX_OUTPUT_TOKENS": "9000",
+                "ANTHROPIC_MAX_OUTPUT_TOKENS": "32000",
+            },
+        )
+        self.assertEqual(settings.providers["openai"].max_output_tokens, 9000)
+        self.assertEqual(settings.providers["anthropic"].max_output_tokens, 32000)
+        self.assertEqual(settings.providers["openai"].timeout_seconds, 600)
+        self.assertEqual(settings.providers["anthropic"].timeout_seconds, 600)
+
 
 class ProviderRequestTests(unittest.TestCase):
     def test_openai_uses_responses_api_and_strict_json_schema(self) -> None:
@@ -192,6 +208,65 @@ class ProviderRequestTests(unittest.TestCase):
             call["payload"]["output_config"]["format"]["type"], "json_schema"
         )
         self.assertEqual(result.value, {"verdict": "COMPLIANT"})
+
+    def test_openai_and_anthropic_encode_the_same_image_for_their_apis(self) -> None:
+        image = InputImage(mime_type="image/png", base64_data="aW1hZ2U=")
+        openai_transport = FakeTransport(
+            {
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": '{"verdict":"COMPLIANT"}'}
+                        ],
+                    }
+                ],
+            }
+        )
+        openai = build_provider(
+            LlmSettings.from_env(
+                "missing.env", environ={"OPENAI_API_KEY": "openai-secret"}
+            ),
+            openai_transport,
+        )
+        openai.generate_json(
+            system_prompt="Read the image.",
+            user_prompt="Transcribe it.",
+            schema=SCHEMA,
+            schema_name="ocr",
+            images=(image,),
+        )
+        openai_content = openai_transport.calls[0]["payload"]["input"][1]["content"]
+        self.assertEqual(openai_content[0]["type"], "input_image")
+        self.assertEqual(
+            openai_content[0]["image_url"], "data:image/png;base64,aW1hZ2U="
+        )
+
+        anthropic_transport = FakeTransport(
+            {
+                "stop_reason": "end_turn",
+                "content": [{"type": "text", "text": '{"verdict":"COMPLIANT"}'}],
+            }
+        )
+        anthropic = build_provider(
+            LlmSettings.from_env(
+                "missing.env", environ={"ANTHROPIC_API_KEY": "anthropic-secret"}
+            ),
+            anthropic_transport,
+        )
+        anthropic.generate_json(
+            system_prompt="Read the image.",
+            user_prompt="Transcribe it.",
+            schema=SCHEMA,
+            schema_name="ocr",
+            images=(image,),
+        )
+        anthropic_content = anthropic_transport.calls[0]["payload"]["messages"][0][
+            "content"
+        ]
+        self.assertEqual(anthropic_content[0]["type"], "image")
+        self.assertEqual(anthropic_content[0]["source"]["data"], "aW1hZ2U=")
 
 
 if __name__ == "__main__":

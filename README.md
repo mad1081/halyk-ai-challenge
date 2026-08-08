@@ -18,9 +18,10 @@ The first milestone implements the deterministic foundation:
 - scores extraction quality and records every attempted backend;
 - evaluates a generated submission against the public `ground_truth.json`.
 
-The provider-neutral LLM transport is now implemented. The covenant solver is
-the next milestone. The current `mvp` command does not pretend that unresolved
-`null` cells are final answers.
+The live covenant solver is implemented as an auditable baseline. It retrieves
+documents by borrower account, sends one structured task per scenario, writes a
+submission, and scores it against public ground truth. The `mvp` command remains
+the deterministic no-API inspection path.
 
 ## Quick start
 
@@ -75,6 +76,28 @@ halyk-agent llm-status
 The command never prints the key. The shared client uses OpenAI Responses API
 or Anthropic Messages API and requests strict JSON Schema output from either
 provider. `.env` is ignored by Git.
+
+## Live model evaluation
+
+After extraction, run either or both providers. Scenario calls use seven worker
+threads by default; OCR runs first because its transcript may be needed by a
+scenario.
+
+```powershell
+halyk-agent live-eval .\agentic-bank-public `
+  --documents-dir .\runs\public\documents `
+  --scan-images-dir .\runs\public\scan-pages `
+  --output-dir .\runs\evals\trial-001 `
+  --providers anthropic `
+  --concurrency 7
+```
+
+Each provider directory contains `events.jsonl`, complete redacted API
+request/response JSON, prompts, decisions, OCR transcript, `submission.json`,
+`evaluation.json`, and `summary.json`. Timings include seconds and minutes for
+every API attempt, OCR, queue wait, scenario, provider run, and whole benchmark.
+Authorization headers are redacted; document contents and model conversations
+are intentionally retained for audit, so do not publish `runs/`.
 
 ## PDF extraction
 

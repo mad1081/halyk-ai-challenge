@@ -93,12 +93,20 @@ class LlmSettings:
             merged.get("HALYK_LLM_PRIORITY", "openai,anthropic")
         )
         timeout = _positive_float(
-            merged.get("HALYK_LLM_TIMEOUT_SECONDS", "180"),
+            merged.get("HALYK_LLM_TIMEOUT_SECONDS", "600"),
             "HALYK_LLM_TIMEOUT_SECONDS",
         )
         max_tokens = _positive_int(
             merged.get("HALYK_LLM_MAX_OUTPUT_TOKENS", "8192"),
             "HALYK_LLM_MAX_OUTPUT_TOKENS",
+        )
+        openai_max_tokens = _positive_int(
+            merged.get("OPENAI_MAX_OUTPUT_TOKENS", str(max_tokens)),
+            "OPENAI_MAX_OUTPUT_TOKENS",
+        )
+        anthropic_max_tokens = _positive_int(
+            merged.get("ANTHROPIC_MAX_OUTPUT_TOKENS", str(max_tokens)),
+            "ANTHROPIC_MAX_OUTPUT_TOKENS",
         )
 
         providers: dict[str, ProviderSettings] = {}
@@ -113,7 +121,7 @@ class LlmSettings:
                     "OPENAI_BASE_URL", "https://api.openai.com/v1"
                 ).strip().rstrip("/"),
                 timeout_seconds=timeout,
-                max_output_tokens=max_tokens,
+                max_output_tokens=openai_max_tokens,
                 reasoning_effort=(
                     merged.get("OPENAI_REASONING_EFFORT", "high").strip() or None
                 ),
@@ -130,7 +138,7 @@ class LlmSettings:
                     "ANTHROPIC_BASE_URL", "https://api.anthropic.com"
                 ).strip().rstrip("/"),
                 timeout_seconds=timeout,
-                max_output_tokens=max_tokens,
+                max_output_tokens=anthropic_max_tokens,
                 api_version=merged.get(
                     "ANTHROPIC_API_VERSION", "2023-06-01"
                 ).strip()

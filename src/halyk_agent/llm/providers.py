@@ -26,6 +26,12 @@ class LlmResult:
     response_id: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class InputImage:
+    mime_type: str
+    base64_data: str
+
+
 class StructuredLlm(Protocol):
     settings: ProviderSettings
 
@@ -36,6 +42,7 @@ class StructuredLlm(Protocol):
         user_prompt: str,
         schema: dict[str, Any],
         schema_name: str,
+        images: tuple[InputImage, ...] = (),
     ) -> LlmResult: ...
 
 
@@ -57,13 +64,27 @@ class OpenAIProvider:
         user_prompt: str,
         schema: dict[str, Any],
         schema_name: str,
+        images: tuple[InputImage, ...] = (),
     ) -> LlmResult:
         _validate_request(system_prompt, user_prompt, schema, schema_name)
+        user_content: str | list[dict[str, Any]] = user_prompt
+        if images:
+            user_content = [
+                {
+                    "type": "input_image",
+                    "image_url": (
+                        f"data:{image.mime_type};base64,{image.base64_data}"
+                    ),
+                    "detail": "high",
+                }
+                for image in images
+            ]
+            user_content.append({"type": "input_text", "text": user_prompt})
         payload: dict[str, Any] = {
             "model": self.settings.model,
             "input": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
             "text": {
                 "format": {
@@ -131,13 +152,28 @@ class AnthropicProvider:
         user_prompt: str,
         schema: dict[str, Any],
         schema_name: str,
+        images: tuple[InputImage, ...] = (),
     ) -> LlmResult:
         _validate_request(system_prompt, user_prompt, schema, schema_name)
+        user_content: str | list[dict[str, Any]] = user_prompt
+        if images:
+            user_content = [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image.mime_type,
+                        "data": image.base64_data,
+                    },
+                }
+                for image in images
+            ]
+            user_content.append({"type": "text", "text": user_prompt})
         payload: dict[str, Any] = {
             "model": self.settings.model,
             "max_tokens": self.settings.max_output_tokens,
             "system": system_prompt,
-            "messages": [{"role": "user", "content": user_prompt}],
+            "messages": [{"role": "user", "content": user_content}],
             "output_config": {
                 "format": {
                     "type": "json_schema",
