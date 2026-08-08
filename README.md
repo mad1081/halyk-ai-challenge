@@ -18,8 +18,9 @@ The first milestone implements the deterministic foundation:
 - scores extraction quality and records every attempted backend;
 - evaluates a generated submission against the public `ground_truth.json`.
 
-The LLM covenant solver is the next milestone. The current `mvp` command does
-not pretend that unresolved `null` cells are final answers.
+The provider-neutral LLM transport is now implemented. The covenant solver is
+the next milestone. The current `mvp` command does not pretend that unresolved
+`null` cells are final answers.
 
 ## Quick start
 
@@ -41,6 +42,39 @@ runs/public/
   scenario-accounts.json
   submission.draft.json
 ```
+
+## LLM credentials
+
+Copy `.env.example` to `.env` and fill either key; one key is enough:
+
+```dotenv
+OPENAI_API_KEY=your-openai-key
+# ANTHROPIC_API_KEY=your-anthropic-key
+```
+
+Or use Anthropic only:
+
+```dotenv
+# OPENAI_API_KEY=your-openai-key
+ANTHROPIC_API_KEY=your-anthropic-key
+```
+
+With `HALYK_LLM_PROVIDER=auto`, the agent selects the credential that exists.
+If both exist, `HALYK_LLM_PRIORITY=openai,anthropic` controls the choice. Set
+`HALYK_LLM_PROVIDER=openai` or `anthropic` to force one explicitly. Process
+environment variables override values in `.env`.
+
+Verify selection without making or billing an API request:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env, then:
+halyk-agent llm-status
+```
+
+The command never prints the key. The shared client uses OpenAI Responses API
+or Anthropic Messages API and requests strict JSON Schema output from either
+provider. `.env` is ignored by Git.
 
 ## PDF extraction
 

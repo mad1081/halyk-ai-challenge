@@ -16,6 +16,7 @@ from halyk_agent.extraction.backends import (
 )
 from halyk_agent.extraction.pipeline import extract_documents
 from halyk_agent.ledger import LedgerError, LedgerIndex
+from halyk_agent.llm import LlmConfigurationError, LlmSettings
 from halyk_agent.submission import create_draft, write_json
 
 
@@ -50,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("submission", type=Path)
     eval_parser.add_argument("ground_truth", type=Path)
     eval_parser.add_argument("--details", type=Path)
+
+    llm_parser = subparsers.add_parser(
+        "llm-status", help="show the selected LLM provider without calling its API"
+    )
+    llm_parser.add_argument("--env-file", type=Path, default=Path(".env"))
     return parser
 
 
@@ -64,7 +70,9 @@ def main(argv: list[str] | None = None) -> int:
             return _extract(args)
         if args.command == "evaluate":
             return _evaluate(args)
-    except (DatasetError, LedgerError, ValueError) as exc:
+        if args.command == "llm-status":
+            return _llm_status(args)
+    except (DatasetError, LedgerError, LlmConfigurationError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 2
@@ -146,6 +154,12 @@ def _evaluate(args) -> int:
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     if args.details:
         write_json(args.details, result)
+    return 0
+
+
+def _llm_status(args) -> int:
+    settings = LlmSettings.from_env(args.env_file)
+    print(json.dumps(settings.public_summary(), ensure_ascii=False, indent=2))
     return 0
 
 
