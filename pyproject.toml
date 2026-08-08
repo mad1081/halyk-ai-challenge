@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "halyk-ai-agent"
+version = "0.1.0"
+description = "Reproducible agent pipeline for the Halyk AI Challenge"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "mad1081" }]
+dependencies = []
+
+[project.scripts]
+halyk-agent = "halyk_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

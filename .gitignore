@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and secrets
+.venv/
+.venv-*/
+.env
+.env.*
+!.env.example
+
+# Datasets and generated artifacts
+agentic-bank-*/
+*.zip
+anydoc-results/
+runs/
+work/
+artifacts/
+submission.json
+
+# Locally cloned parser sources
+pdf-inspector-source/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
