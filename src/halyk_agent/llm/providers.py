@@ -30,6 +30,7 @@ class LlmResult:
 class InputImage:
     mime_type: str
     base64_data: str
+    detail: str = "original"
 
 
 class StructuredLlm(Protocol):
@@ -75,7 +76,7 @@ class OpenAIProvider:
                     "image_url": (
                         f"data:{image.mime_type};base64,{image.base64_data}"
                     ),
-                    "detail": "high",
+                    "detail": image.detail,
                 }
                 for image in images
             ]

@@ -16,16 +16,16 @@ from halyk_agent.benchmark import (
     _add_usage,
     _apply_decisions,
     _build_user_prompt,
+    _discover_scan_image_groups,
     _execute_scenario,
-    _ocr_images,
+    _ocr_scan_groups,
     benchmark_schema,
 )
 from halyk_agent.dataset import dataset_fingerprint, materialize_dataset
 from halyk_agent.evaluation import evaluate_submission
 from halyk_agent.ledger import LedgerIndex
-from halyk_agent.llm import LlmSettings, build_provider
-from halyk_agent.llm.transport import UrllibJsonTransport
-from halyk_agent.runlog import JsonlRunLogger, RecordingTransport
+from halyk_agent.llm import LlmSettings
+from halyk_agent.runlog import JsonlRunLogger
 
 
 def run_stability_benchmark(
@@ -40,6 +40,7 @@ def run_stability_benchmark(
     retries: int = 2,
     concurrency: int = 35,
     excluded_cells: tuple[str, ...] = (),
+    scenario_deadline_seconds: float = 600.0,
 ) -> dict[str, Any]:
     """Run repeated independent solver passes with one shared OCR per provider."""
 
@@ -49,6 +50,8 @@ def run_stability_benchmark(
         raise ValueError("retries must be zero or positive")
     if concurrency <= 0:
         raise ValueError("concurrency must be positive")
+    if scenario_deadline_seconds <= 0:
+        raise ValueError("scenario deadline must be positive")
     exclusions = _parse_excluded_cells(excluded_cells)
 
     benchmark_started = time.perf_counter()
@@ -62,6 +65,7 @@ def run_stability_benchmark(
         repetitions=repetitions,
         concurrency_per_provider=concurrency,
         retries=retries,
+        scenario_deadline_seconds=scenario_deadline_seconds,
         excluded_cells=sorted(f"{s}/{c}" for s, c in exclusions),
     )
 
@@ -73,19 +77,17 @@ def run_stability_benchmark(
     ledger = LedgerIndex.from_csv(layout.ledger_path)
     accounts = ledger.scenario_accounts(scenarios)
     catalog = DocumentCatalog.from_directory(documents_dir)
-    image_paths: tuple[Path, ...] = ()
-    if scan_images_dir is not None:
-        image_paths = tuple(
-            sorted(scan_images_dir.glob("*.png"), key=lambda path: path.name.casefold())
-        )
-        if not image_paths:
-            raise BenchmarkError(f"No PNG pages found in {scan_images_dir}")
+    scan_root = scan_images_dir if scan_images_dir is not None else documents_dir.parent
+    scan_image_groups = _discover_scan_image_groups(scan_root)
+    if scan_images_dir is not None and not scan_image_groups:
+        raise BenchmarkError(f"No PNG pages found in {scan_images_dir}")
 
     dataset_summary = {
         "dataset_fingerprint": dataset_fingerprint(layout),
         "scenario_count": len(scenarios),
         "catalog_document_count": len(catalog.records),
-        "scan_page_count": len(image_paths),
+        "scan_document_count": len(scan_image_groups),
+        "scan_page_count": sum(len(group) for group in scan_image_groups),
         "accounts": accounts,
     }
     root_logger.artifact("dataset.json", dataset_summary)
@@ -111,12 +113,13 @@ def run_stability_benchmark(
                 accounts=accounts,
                 ledger=ledger,
                 catalog=catalog,
-                scan_image_paths=image_paths,
+                scan_image_groups=scan_image_groups,
                 ground_truth_path=layout.ground_truth_path,
                 repetitions=repetitions,
                 retries=retries,
                 concurrency=concurrency,
                 exclusions=exclusions,
+                scenario_deadline_seconds=scenario_deadline_seconds,
             ): provider_name
             for provider_name in providers
         }
@@ -157,12 +160,13 @@ def _run_stability_provider(
     accounts: dict[str, str],
     ledger: LedgerIndex,
     catalog: DocumentCatalog,
-    scan_image_paths: tuple[Path, ...],
+    scan_image_groups: tuple[tuple[Path, ...], ...],
     ground_truth_path: Path,
     repetitions: int,
     retries: int,
     concurrency: int,
     exclusions: set[tuple[str, str]],
+    scenario_deadline_seconds: float,
 ) -> dict[str, Any]:
     logger = JsonlRunLogger(output_dir)
     selected_settings = replace(settings, requested_provider=provider_name)
@@ -180,45 +184,51 @@ def _run_stability_provider(
     )
 
     provider_catalog = catalog
-    ocr_summary: dict[str, Any] | None = None
-    if scan_image_paths:
-        recording_transport = RecordingTransport(
-            UrllibJsonTransport(), logger, provider_name
-        )
-        client = build_provider(selected_settings, recording_transport)
-        ocr_record, ocr_summary = _ocr_images(
-            client=client,
-            recording_transport=recording_transport,
+    ocr_summaries: list[dict[str, Any]] = []
+    if scan_image_groups:
+        ocr_records, ocr_summaries = _ocr_scan_groups(
+            selected_settings=selected_settings,
+            catalog=catalog,
             logger=logger,
             provider_name=provider_name,
             model=provider_settings.model,
-            image_paths=scan_image_paths,
+            scan_image_groups=scan_image_groups,
             retries=retries,
         )
-        provider_catalog = DocumentCatalog(catalog.records + (ocr_record,))
-        _add_usage(usage_totals, ocr_summary["usage"])
+        for ocr_summary in ocr_summaries:
+            _add_usage(usage_totals, ocr_summary["usage"])
+        provider_catalog = DocumentCatalog(catalog.records + tuple(ocr_records))
 
     retrieval = {
-        scenario: provider_catalog.for_account(accounts[scenario])
+        scenario: provider_catalog.for_borrower(accounts[scenario])
         for scenario in scenarios
     }
-    missing = [scenario for scenario, records in retrieval.items() if not records]
+    missing = [
+        scenario for scenario, bundle in retrieval.items() if not bundle.records
+    ]
     if missing:
         raise BenchmarkError(
             f"{provider_name}: no documents matched account_id for scenarios: "
             + ", ".join(missing)
         )
     retrieval_counts = {
-        scenario: len(records) for scenario, records in retrieval.items()
+        scenario: len(bundle.records) for scenario, bundle in retrieval.items()
     }
     logger.artifact(
         "retrieval.json",
         {
             scenario: {
                 "account_id": accounts[scenario],
-                "documents": [record.name for record in records],
+                "primary_entity": bundle.primary_entity,
+                "documents": [
+                    {
+                        "name": record.name,
+                        "reason": bundle.reason_for(record),
+                    }
+                    for record in bundle.records
+                ],
             }
-            for scenario, records in retrieval.items()
+            for scenario, bundle in retrieval.items()
         },
     )
 
@@ -229,7 +239,7 @@ def _run_stability_provider(
             scenario=scenario,
             account_id=accounts[scenario],
             covenants=covenants,
-            records=retrieval[scenario],
+            retrieval=retrieval[scenario],
             transactions=ledger.by_scenario[scenario],
         )
         logger.artifact(
@@ -278,6 +288,7 @@ def _run_stability_provider(
                     artifact_directory=(
                         Path("repetitions") / f"{repetition:03d}" / "decisions"
                     ),
+                    scenario_deadline_seconds=scenario_deadline_seconds,
                 )
                 futures[future] = key
 
@@ -370,11 +381,12 @@ def _run_stability_provider(
         "elapsed_minutes": round(elapsed / 60, 4),
         "repetitions": repetitions,
         "concurrency": concurrency,
+        "scenario_deadline_seconds": scenario_deadline_seconds,
         "scenario_count": len(scenarios),
         "total_solver_tasks": repetitions * len(scenarios),
         "completed_solver_tasks": sum("error" not in value for value in results.values()),
         "usage": usage_totals,
-        "ocr": ocr_summary,
+        "ocr": ocr_summaries,
         "retrieved_document_counts": retrieval_counts,
         "score_statistics": stability["score_statistics"],
         "clean_score_statistics": stability["clean_score_statistics"],

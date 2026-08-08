@@ -98,6 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="maximum simultaneous solver calls per provider (default: 35)",
     )
     stability_parser.add_argument(
+        "--scenario-deadline",
+        type=float,
+        default=600.0,
+        help="hard wall-clock budget for one borrower across retries (default: 600s)",
+    )
+    stability_parser.add_argument(
         "--exclude-cell",
         action="append",
         default=[],
@@ -109,6 +115,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=7,
         help="number of scenario requests to run concurrently (default: 7)",
+    )
+    benchmark_parser.add_argument(
+        "--scenario-deadline",
+        type=float,
+        default=600.0,
+        help="hard wall-clock budget for one borrower across retries (default: 600s)",
     )
     return parser
 
@@ -205,6 +217,7 @@ def _extract(args) -> int:
         CascadeExtractor(backends),
         limit=args.limit,
         timeout=args.timeout,
+        rasterize_low_text_pages=not args.no_ocr,
     )
     print(json.dumps({key: value for key, value in manifest.items() if key != "documents"}, indent=2))
     return 1 if manifest["error_count"] else 0
@@ -237,6 +250,7 @@ def _live_eval(args) -> int:
         scan_images_dir=args.scan_images_dir,
         retries=args.retries,
         concurrency=args.concurrency,
+        scenario_deadline_seconds=args.scenario_deadline,
     )
     output = {
         name: {
@@ -265,6 +279,7 @@ def _stability_eval(args) -> int:
         retries=args.retries,
         concurrency=args.concurrency,
         excluded_cells=tuple(args.exclude_cell),
+        scenario_deadline_seconds=args.scenario_deadline,
     )
     output = {
         name: {

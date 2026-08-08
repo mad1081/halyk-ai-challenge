@@ -9,6 +9,10 @@ Record comparable experiments here. Generated raw artifacts stay in `runs/`.
 | public-anthropic-001 | working tree | `f4fe39f...` | `claude-sonnet-5`, 7 concurrent scenario calls | 0.7000 | 10.07 min | Complete baseline; improve retrieval/calculation before model tuning |
 | public-openai-stability-10x-001 | working tree | public-v1 | `gpt-5.6-sol`, 10 repetitions, 35-worker bounded pool, one shared OCR pass | 0.7848 mean (0.7167-0.8417) | 7.43 min | Frozen v1 baseline; 120/120 solver tasks completed |
 | public-anthropic-stability-10x-001 | working tree | public-v1 | `claude-sonnet-5`, 10 repetitions, 35-worker bounded pool, one shared OCR pass | 0.7219 mean (0.6278-0.7806) | 21.18 min | Frozen v1 baseline; 119/120 tasks completed, one P3 exhausted retries |
+| public-openai-v2-001 | working tree | public-v1 | Entity-linked retrieval + compact evidence, initial 300s deadline | 0.6778 | partial | Three technical failures; successful cells averaged 0.9037 |
+| public-openai-v2-002 | working tree | public-v1 | 16K output, 600s deadline, ratio/EBITDA rules | 0.8083 | 3.20 min | Stable 12/12; exposed paragraph-neighbor compaction bug |
+| public-openai-v2.1-003 | working tree | public-v1 | Preserve operative neighboring paragraphs + stronger evidence test | 0.8806 | 3.10 min | 30/36 perfect; first run above v1 10x maximum |
+| public-openai-v2.2-004 | working tree | public-v1 | Page-level mixed-PDF OCR + category discipline; 4 OCR docs concurrent | 0.9167 (clean 0.9429) | 2.32 min | Winner: 33/36 perfect; retain and add verifier |
 
 The OpenAI and Anthropic wall times are not a clean speed comparison: OpenAI
 was collected before concurrent scenario execution was added, while Anthropic

@@ -34,8 +34,10 @@ dataset ZIP/directory
 Any successful parser process can still return useless text. Selection is
 therefore based on content quality, not exit code alone. The current gate uses
 character count, alphanumeric ratio, replacement-character ratio and line
-count. Later versions will add page coverage, table preservation, expected
-identifier recall and cross-parser agreement.
+count. It also checks native text per page and routes substantial raster
+regions, so a scanned table cannot hide inside an otherwise searchable PDF.
+Later versions will add structured table preservation, expected identifier
+recall and cross-parser fact agreement.
 
 The MVP backends are:
 
@@ -45,6 +47,8 @@ The MVP backends are:
   mixed PDFs in Russian, Kazakh and English.
 - **OCRmyPDF:** optional local OCR pass for scanned/mixed PDFs, followed by
   `pdftotext`.
+- **Provider vision OCR:** selected suspicious pages only, parallelized by
+  source document and merged back with account provenance.
 
 AnyDoc 0.1.6 delegates PDF parsing to `pdf-inspector` and does not perform OCR.
 Its locked `lopdf` 0.41.0 dependency has a published denial-of-service issue,

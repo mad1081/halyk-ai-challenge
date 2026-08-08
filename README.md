@@ -13,9 +13,10 @@ The first milestone implements the deterministic foundation:
 - validates the ledger, document directory and submission template;
 - derives the exact `scenario_id -> account_id` mapping from transaction IDs;
 - creates a reproducible run directory with manifests and a draft submission;
-- extracts PDF text through an isolated AnyDoc process, `pdftotext`, and an
-  optional OCRmyPDF fallback;
-- scores extraction quality and records every attempted backend;
+- extracts PDF text through an isolated AnyDoc process and independent
+  fallbacks;
+- scores whole-document and per-page quality, routing blank or substantial
+  embedded-image pages to vision OCR;
 - evaluates a generated submission against the public `ground_truth.json`.
 
 The live covenant solver is implemented as an auditable baseline. It retrieves
@@ -80,17 +81,21 @@ provider. `.env` is ignored by Git.
 ## Live model evaluation
 
 After extraction, run either or both providers. Scenario calls use seven worker
-threads by default; OCR runs first because its transcript may be needed by a
-scenario.
+threads by default. Independent scanned documents are OCRed concurrently before
+the scenario pool because their transcripts may be required evidence.
 
 ```powershell
 halyk-agent live-eval .\agentic-bank-public `
   --documents-dir .\runs\public\documents `
-  --scan-images-dir .\runs\public\scan-pages `
+  --scan-images-dir .\runs\public `
   --output-dir .\runs\evals\trial-001 `
   --providers anthropic `
   --concurrency 7
 ```
+
+`--scan-images-dir` may point either to one directory of PNG pages or to an
+extraction root containing multiple `scan-<pdf-stem>` directories. If omitted,
+the command discovers those sibling directories next to `--documents-dir`.
 
 Each provider directory contains `events.jsonl`, complete redacted API
 request/response JSON, prompts, decisions, OCR transcript, `submission.json`,
@@ -121,12 +126,16 @@ defects.
 
 ## PDF extraction
 
-The repository supports a cascade instead of trusting one parser:
+The repository supports a routed cascade instead of trusting one parser:
 
 1. AnyDoc in a separate Python process with a timeout.
-2. `pdftotext` for a second native text extraction attempt.
-3. Docling plus RapidOCR for scanned/mixed documents and complex tables.
-4. OCRmyPDF plus `pdftotext` as a last local fallback, when installed.
+2. `pdftotext` for a second native text extraction attempt and page coverage.
+3. `pdfimages` detection for substantial raster regions on otherwise text-rich
+   hybrid pages.
+4. Selected pages rasterized at 200 DPI and sent to provider vision OCR; GPT-5.6
+   uses `detail: original`.
+5. Docling plus RapidOCR for local scanned/mixed-document and table fallback.
+6. OCRmyPDF plus `pdftotext` as an emergency local fallback, when installed.
 
 Use the already isolated AnyDoc environment:
 
@@ -137,7 +146,8 @@ halyk-agent extract .\agentic-bank-public `
   --limit 10
 ```
 
-Process every PDF by omitting `--limit`. All generated Markdown and manifests
+Process every PDF by omitting `--limit`. Extraction creates Markdown plus
+`scan-<pdf-stem>/page-NNNN.png` only for routed pages. All generated artifacts
 belong under `runs/`, which is intentionally ignored by Git.
 
 For the recommended scanned-PDF fallback, use a separate Python 3.12

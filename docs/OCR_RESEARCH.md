@@ -1,6 +1,6 @@
 # PDF and OCR research
 
-Research date: 2026-08-08.
+Research date: 2026-08-09.
 
 ## Recommendation
 
@@ -8,14 +8,17 @@ Do not make AnyDoc the only parser. Use a tiered path:
 
 ```text
 AnyDoc (MVP) / direct current pdf-inspector (target)
-  -> per-document and later per-page quality gate
-  -> Docling standard pipeline + RapidOCR Cyrillic
-  -> OCRmyPDF emergency local fallback
-  -> optional Firecrawl Parse OCR or vision API fallback
+  -> per-page native-text + embedded-image routing
+  -> selective provider vision OCR (parallel by document)
+  -> Docling pdf-aware regions + RapidOCR Cyrillic local fallback
+  -> optional full-PDF vision or Firecrawl Parse fallback
 ```
 
 This keeps the common text-native path fast while still handling real scans,
-mixed PDFs and tables during the three-hour private round.
+mixed PDFs and tables during the three-hour private round. On the public set it
+found all four scanned/mixed documents (seven routed pages); adding the three
+previously missed mixed-document transcripts raised the proxy from 0.8806 to
+0.9167.
 
 ## AnyDoc findings
 
@@ -57,6 +60,17 @@ Primary sources:
 
 ## Cloud fallback
 
+OpenAI Responses accepts PDFs as `input_file`; on vision-capable models it
+supplies both extracted text and page images to the model. PDF `detail=high`
+preserves more visual detail, while individual GPT-5.6 image inputs support
+`detail=original`, which the official guide recommends for OCR and small text.
+This is an excellent conflict/failure fallback, but passing every page of every
+PDF duplicates native text, raises token use, and risks private-round rate-limit
+pressure. The implemented route therefore sends only suspicious rendered pages.
+
+- [OpenAI file inputs](https://developers.openai.com/api/docs/guides/file-inputs)
+- [OpenAI images and vision](https://developers.openai.com/api/docs/guides/images-vision)
+
 Firecrawl Parse `/v2/parse` offers `fast`, `auto` and `ocr` PDF modes. It is a
 convenient last resort, not a mandatory dependency: files leave the machine,
 an API key/network are required, and the service has file/plan constraints.
@@ -69,7 +83,9 @@ Parser exit code and non-empty output are insufficient. Trigger a fallback on:
 
 - timeout, unsupported/encrypted document or parser error;
 - fewer than 200 document characters in the MVP;
-- fewer than 30-50 alphanumeric characters on a visually populated page;
+- fewer than 40 alphanumeric characters or 80 total characters on a page;
+- a substantial embedded raster image, even when the same page also has ample
+  native text (covers scanned tables, stamps, signatures, and exhibits);
 - replacement-character ratio above 0.5%;
 - printable-character ratio below 85%;
 - missing pages or pages reported by `pages_needing_ocr`;
@@ -99,4 +115,3 @@ the longest text blindly.
 - **PyMuPDF/PyMuPDF4LLM:** capable and fast, but AGPL/commercial licensing must
   be acceptable for the project.
 - **pdftotext:** useful independent baseline, no OCR and limited structure.
-
