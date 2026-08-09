@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 
 from halyk_agent.dataset import DatasetLayout
 from halyk_agent.extraction.backends import CascadeExtractor
@@ -12,6 +14,8 @@ from halyk_agent.extraction.backends import CascadeExtractor
 
 ACCOUNT_PATTERN = re.compile(r"\bACC-\d+(?:-\d+)?\b", re.IGNORECASE)
 PAGES_PATTERN = re.compile(r"^Pages:\s+(\d+)\s*$", re.IGNORECASE | re.MULTILINE)
+SINGLE_IMAGE_COVERAGE_THRESHOLD = 0.02
+UNION_IMAGE_COVERAGE_THRESHOLD = 0.03
 
 
 def _low_text_page_numbers(page_texts: tuple[str, ...]) -> tuple[int, ...]:
@@ -27,17 +31,21 @@ def _low_text_page_numbers(page_texts: tuple[str, ...]) -> tuple[int, ...]:
 
 
 def _parse_pdfimages_pages(output: str) -> tuple[int, ...]:
-    """Flag pages containing a substantial raster region.
+    """Fallback detector based on intrinsic image dimensions.
 
-    This complements blank-page detection for hybrid pages that contain plenty
-    of native text plus a scanned table, stamp, signature, or embedded exhibit.
-    Tiny icons and logos are ignored to avoid unnecessary vision calls.
+    Displayed page geometry is preferable because a low-resolution image can be
+    stretched over most of a page and a high-resolution logo can be displayed
+    very small. This parser remains useful when ``pdftohtml`` is unavailable.
     """
 
     pages = set()
     for line in output.splitlines():
         fields = line.split()
-        if len(fields) < 6 or not fields[0].isdigit() or fields[2] != "image":
+        if (
+            len(fields) < 6
+            or not fields[0].isdigit()
+            or fields[2] not in {"image", "mask"}
+        ):
             continue
         try:
             page_number = int(fields[0])
@@ -53,12 +61,142 @@ def _parse_pdfimages_pages(output: str) -> tuple[int, ...]:
     return tuple(sorted(pages))
 
 
-def _embedded_image_page_numbers(
+def _rectangle_union_area(
+    rectangles: tuple[tuple[float, float, float, float], ...],
+) -> float:
+    """Return the exact union area of a small set of axis-aligned rectangles."""
+
+    if not rectangles:
+        return 0.0
+    x_coordinates = sorted({value for rect in rectangles for value in (rect[0], rect[2])})
+    area = 0.0
+    for left, right in zip(x_coordinates, x_coordinates[1:]):
+        if right <= left:
+            continue
+        intervals = sorted(
+            (top, bottom)
+            for x0, top, x1, bottom in rectangles
+            if x0 < right and x1 > left and bottom > top
+        )
+        if not intervals:
+            continue
+        covered_height = 0.0
+        current_top, current_bottom = intervals[0]
+        for top, bottom in intervals[1:]:
+            if top <= current_bottom:
+                current_bottom = max(current_bottom, bottom)
+            else:
+                covered_height += current_bottom - current_top
+                current_top, current_bottom = top, bottom
+        covered_height += current_bottom - current_top
+        area += (right - left) * covered_height
+    return area
+
+
+def _parse_pdftohtml_image_analysis(
+    output: str,
+    *,
+    single_image_threshold: float = SINGLE_IMAGE_COVERAGE_THRESHOLD,
+    union_image_threshold: float = UNION_IMAGE_COVERAGE_THRESHOLD,
+) -> tuple[dict, ...]:
+    """Analyze the *displayed* image area reported by ``pdftohtml -xml``.
+
+    Each result is retained for provenance, including pages below the routing
+    threshold. Union coverage catches tiled scans whose individual raster tiles
+    all look like small images. Coordinates are clipped to the visible page so
+    malformed or deliberately oversized boxes cannot inflate the score.
+    """
+
+    root = ET.fromstring(output)
+    analysis: list[dict] = []
+    for page in root.iter("page"):
+        try:
+            page_number = int(page.attrib["number"])
+            page_width = float(page.attrib["width"])
+            page_height = float(page.attrib["height"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        page_area = page_width * page_height
+        if page_area <= 0:
+            continue
+        rectangles: list[tuple[float, float, float, float]] = []
+        for image in page.iter("image"):
+            try:
+                left = float(image.attrib["left"])
+                top = float(image.attrib["top"])
+                width = float(image.attrib["width"])
+                height = float(image.attrib["height"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            right = min(page_width, max(0.0, left + width))
+            bottom = min(page_height, max(0.0, top + height))
+            left = min(page_width, max(0.0, left))
+            top = min(page_height, max(0.0, top))
+            if right > left and bottom > top:
+                rectangles.append((left, top, right, bottom))
+        if not rectangles:
+            continue
+        individual_coverages = [
+            ((right - left) * (bottom - top)) / page_area
+            for left, top, right, bottom in rectangles
+        ]
+        maximum_coverage = max(individual_coverages)
+        union_coverage = _rectangle_union_area(tuple(rectangles)) / page_area
+        reasons = []
+        if maximum_coverage >= single_image_threshold:
+            reasons.append("displayed_image_coverage")
+        if union_coverage >= union_image_threshold:
+            reasons.append("displayed_image_union_coverage")
+        analysis.append(
+            {
+                "page": page_number,
+                "detector": "pdftohtml_display_geometry",
+                "image_count": len(rectangles),
+                "max_image_coverage": round(maximum_coverage, 6),
+                "union_image_coverage": round(union_coverage, 6),
+                "routed": bool(reasons),
+                "reasons": reasons or ["below_displayed_image_threshold"],
+            }
+        )
+    return tuple(analysis)
+
+
+def _embedded_image_page_analysis(
     pdf_path: Path,
     *,
     timeout: float,
+    pdftohtml_executable: str = "pdftohtml",
     pdfimages_executable: str = "pdfimages",
-) -> tuple[int, ...]:
+) -> tuple[dict, ...]:
+    """Inspect visible image geometry, with the old pixel heuristic as fallback."""
+
+    if shutil.which(pdftohtml_executable) is not None:
+        # Even with ``-stdout``, pdftohtml materializes referenced image files.
+        # Isolate them so extraction never pollutes the dataset or current dir.
+        with tempfile.TemporaryDirectory(prefix="halyk-pdftohtml-") as temporary:
+            completed = subprocess.run(
+                [
+                    pdftohtml_executable,
+                    "-xml",
+                    "-stdout",
+                    "-hidden",
+                    str(pdf_path.resolve()),
+                    "-",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+                check=False,
+                cwd=temporary,
+            )
+        if completed.returncode == 0:
+            try:
+                return _parse_pdftohtml_image_analysis(completed.stdout)
+            except ET.ParseError:
+                pass
+
     if shutil.which(pdfimages_executable) is None:
         return ()
     completed = subprocess.run(
@@ -72,7 +210,32 @@ def _embedded_image_page_numbers(
     )
     if completed.returncode != 0:
         return ()
-    return _parse_pdfimages_pages(completed.stdout + "\n" + completed.stderr)
+    pages = _parse_pdfimages_pages(completed.stdout + "\n" + completed.stderr)
+    return tuple(
+        {
+            "page": page,
+            "detector": "pdfimages_intrinsic_fallback",
+            "routed": True,
+            "reasons": ["substantial_intrinsic_raster"],
+        }
+        for page in pages
+    )
+
+
+def _embedded_image_page_numbers(
+    pdf_path: Path,
+    *,
+    timeout: float,
+    pdftohtml_executable: str = "pdftohtml",
+    pdfimages_executable: str = "pdfimages",
+) -> tuple[int, ...]:
+    analysis = _embedded_image_page_analysis(
+        pdf_path,
+        timeout=timeout,
+        pdftohtml_executable=pdftohtml_executable,
+        pdfimages_executable=pdfimages_executable,
+    )
+    return tuple(row["page"] for row in analysis if row["routed"])
 
 
 def _native_pdf_pages(
@@ -183,14 +346,19 @@ def extract_documents(
             temporary.replace(output_path)
             low_text_pages: tuple[int, ...] = ()
             embedded_image_pages: tuple[int, ...] = ()
+            visual_page_analysis: tuple[dict, ...] = ()
+            routed_pages: tuple[int, ...] = ()
             scan_images: tuple[Path, ...] = ()
             scan_detection_error = None
             if rasterize_low_text_pages:
                 try:
                     native_pages = _native_pdf_pages(pdf_path, timeout=timeout)
                     low_text_pages = _low_text_page_numbers(native_pages)
-                    embedded_image_pages = _embedded_image_page_numbers(
+                    visual_page_analysis = _embedded_image_page_analysis(
                         pdf_path, timeout=timeout
+                    )
+                    embedded_image_pages = tuple(
+                        row["page"] for row in visual_page_analysis if row["routed"]
                     )
                     routed_pages = tuple(
                         sorted(set(low_text_pages) | set(embedded_image_pages))
@@ -214,6 +382,29 @@ def extract_documents(
                 "attempts": [attempt.to_dict() for attempt in result.attempts],
                 "low_text_pages": list(low_text_pages),
                 "embedded_image_pages": list(embedded_image_pages),
+                "visual_page_analysis": list(visual_page_analysis),
+                "routed_pages": list(routed_pages),
+                "scan_page_provenance": [
+                    {
+                        "page": page,
+                        "reasons": (
+                            (["low_native_text"] if page in low_text_pages else [])
+                            + next(
+                                (
+                                    row["reasons"]
+                                    for row in visual_page_analysis
+                                    if row["page"] == page and row["routed"]
+                                ),
+                                [],
+                            )
+                        ),
+                        "image": next(
+                            (str(path) for path in scan_images if path.stem == f"page-{page:04d}"),
+                            None,
+                        ),
+                    }
+                    for page in routed_pages
+                ],
                 "scan_images": [str(path) for path in scan_images],
             }
             if scan_detection_error is not None:

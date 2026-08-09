@@ -106,6 +106,14 @@ If extractors disagree on identifiers or financial numbers, retain both
 outputs and route the document to the stronger parser rather than accepting
 the longest text blindly.
 
+The `experiment/ocr-router-v3` branch measures substantial images by their
+displayed bounding boxes rather than intrinsic pixel dimensions. It routes a
+single image at 2% page coverage or multiple tiles at 3% union coverage and
+keeps the intrinsic `pdfimages` rule only as a tool-availability fallback.
+This catches low-DPI rasters stretched across a text-rich page and avoids
+high-resolution logos that are rendered tiny. Original PDF page numbers and
+per-page routing reasons are retained through the OCR transcript.
+
 ## Alternatives
 
 - **OCRmyPDF + Tesseract:** reliable searchable-PDF fallback, weaker document

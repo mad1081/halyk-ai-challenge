@@ -69,6 +69,27 @@ expressly required. This branch has no paid-API result yet; it must beat the
 recorded stability baseline without regressing previously stable cells before
 merge.
 
+### experiment/ocr-router-v3 — displayed-geometry selective vision
+
+**What changed:** Replaced the primary intrinsic-pixel heuristic with visible
+page-area analysis from `pdftohtml -xml`. A page is routed when one displayed
+image covers at least 2% of the page or the union of image tiles covers at
+least 3%. The old `pdfimages` heuristic remains a fallback. Routing reasons,
+coverage, original PDF page numbers, and output image provenance are logged.
+
+**Why:** Intrinsic dimensions do not say how large an image appears. A low-DPI
+table may occupy 40% of a text-rich page while falling below the old 150,000
+pixel threshold; a high-resolution logo can create the opposite false alarm.
+
+**Result:** The public corpus still routes the same six genuine raster pages
+plus one sparse native-text page. Adversarial tests cover low-resolution large
+rasters, tiled scans, OCR text layers, and small-logo exclusion. No paid API
+evaluation was run on this isolated experiment branch.
+
+**Tradeoff:** Vector-only graphics, PDF annotations, and very small raster
+stamps below 2% remain outside the automatic geometry gate. Decisive source
+documents should still receive a final visual verification pass.
+
 ### v2.3 — currency/category stability baseline
 
 **What changed:** Added an explicit all-currency check and prohibited silently

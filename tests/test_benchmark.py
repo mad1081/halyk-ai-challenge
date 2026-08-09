@@ -11,10 +11,12 @@ from halyk_agent.benchmark import (
     _compact_document,
     _discover_scan_image_groups,
     _ocr_account_hint,
+    _source_pdf_page_numbers,
     benchmark_schema,
 )
 from halyk_agent.extraction.pipeline import (
     _low_text_page_numbers,
+    _parse_pdftohtml_image_analysis,
     _parse_pdfimages_pages,
 )
 
@@ -170,6 +172,65 @@ page num type width height color comp bpc enc interp object ID x-ppi y-ppi size 
 """
 
         self.assertEqual(_parse_pdfimages_pages(listing), (2, 3))
+
+    def test_display_geometry_routes_low_resolution_image_on_text_rich_page(self) -> None:
+        pages = ("Selectable covenant and audit text. " * 30,)
+        xml = """<pdf2xml><page number="1" width="1000" height="1000">
+          <image top="100" left="100" width="650" height="600" src="low-res.png"/>
+        </page></pdf2xml>"""
+
+        analysis = _parse_pdftohtml_image_analysis(xml)
+
+        self.assertEqual(_low_text_page_numbers(pages), ())
+        self.assertTrue(analysis[0]["routed"])
+        self.assertAlmostEqual(analysis[0]["max_image_coverage"], 0.39)
+        self.assertIn("displayed_image_coverage", analysis[0]["reasons"])
+
+    def test_display_geometry_routes_tiled_scan_by_union_coverage(self) -> None:
+        xml = """<pdf2xml><page number="4" width="1000" height="1000">
+          <image top="100" left="100" width="90" height="90" src="tile-1.png"/>
+          <image top="100" left="300" width="90" height="90" src="tile-2.png"/>
+          <image top="300" left="100" width="90" height="90" src="tile-3.png"/>
+          <image top="300" left="300" width="90" height="90" src="tile-4.png"/>
+        </page></pdf2xml>"""
+
+        analysis = _parse_pdftohtml_image_analysis(xml)
+
+        self.assertTrue(analysis[0]["routed"])
+        self.assertLess(analysis[0]["max_image_coverage"], 0.02)
+        self.assertGreater(analysis[0]["union_image_coverage"], 0.03)
+        self.assertIn("displayed_image_union_coverage", analysis[0]["reasons"])
+
+    def test_display_geometry_excludes_small_logo(self) -> None:
+        xml = """<pdf2xml><page number="2" width="1000" height="1000">
+          <image top="20" left="20" width="120" height="80" src="logo.png"/>
+        </page></pdf2xml>"""
+
+        analysis = _parse_pdftohtml_image_analysis(xml)
+
+        self.assertFalse(analysis[0]["routed"])
+        self.assertEqual(analysis[0]["reasons"], ["below_displayed_image_threshold"])
+
+    def test_full_page_scan_routes_even_with_ocr_text_layer(self) -> None:
+        native_pages = ("An OCR layer with plenty of selectable text. " * 40,)
+        xml = """<pdf2xml><page number="1" width="1000" height="1000">
+          <image top="0" left="0" width="1000" height="1000" src="scan.png"/>
+          <text top="20" left="20" width="400" height="20">Selectable OCR text</text>
+        </page></pdf2xml>"""
+
+        analysis = _parse_pdftohtml_image_analysis(xml)
+
+        self.assertEqual(_low_text_page_numbers(native_pages), ())
+        self.assertTrue(analysis[0]["routed"])
+        self.assertEqual(analysis[0]["union_image_coverage"], 1.0)
+
+    def test_scan_page_provenance_uses_original_pdf_numbers(self) -> None:
+        paths = (
+            Path("scan-example/page-0003.png"),
+            Path("scan-example/page-0011.png"),
+        )
+
+        self.assertEqual(_source_pdf_page_numbers(paths), (3, 11))
 
 
 if __name__ == "__main__":

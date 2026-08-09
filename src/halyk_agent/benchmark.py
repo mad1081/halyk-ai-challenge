@@ -27,6 +27,19 @@ class BenchmarkError(RuntimeError):
     """Raised when a live model benchmark cannot be completed safely."""
 
 
+_SCAN_PAGE_FILENAME = re.compile(r"^page-(\d+)\.png$", re.IGNORECASE)
+
+
+def _source_pdf_page_numbers(image_paths: tuple[Path, ...]) -> tuple[int, ...]:
+    """Recover original 1-based PDF pages from rasterizer filenames."""
+
+    page_numbers = []
+    for sequence, path in enumerate(image_paths, start=1):
+        match = _SCAN_PAGE_FILENAME.match(path.name)
+        page_numbers.append(int(match.group(1)) if match is not None else sequence)
+    return tuple(page_numbers)
+
+
 def _discover_scan_image_groups(scan_root: Path) -> tuple[tuple[Path, ...], ...]:
     """Find one ordered PNG group per scanned source PDF.
 
@@ -994,6 +1007,7 @@ def _ocr_images(
     account_id_hint: str | None = None,
 ) -> tuple[DocumentRecord, dict[str, Any]]:
     source_stem = image_paths[0].parent.name.removeprefix("scan-")
+    source_page_numbers = _source_pdf_page_numbers(image_paths)
     ocr_started = time.perf_counter()
     ocr_started_at = datetime.now(timezone.utc).isoformat()
     logger.event(
@@ -1001,6 +1015,7 @@ def _ocr_images(
         provider=provider_name,
         model=model,
         page_count=len(image_paths),
+        original_pdf_pages=list(source_page_numbers),
         source_document=source_stem,
         account_id_hint=account_id_hint,
         started_at=ocr_started_at,
@@ -1014,7 +1029,8 @@ def _ocr_images(
     )
     image_metadata = [
         {
-            "page": index,
+            "sequence": index,
+            "source_pdf_page": source_page_numbers[index - 1],
             "filename": path.name,
             "bytes": path.stat().st_size,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -1022,9 +1038,11 @@ def _ocr_images(
         for index, path in enumerate(image_paths, start=1)
     ]
     hint = f" Companion text identifies account_id {account_id_hint}." if account_id_hint else ""
+    page_list = ", ".join(str(page) for page in source_page_numbers)
     user_prompt = (
-        f"The {len(images)} supplied images are pages of document {source_stem}.pdf."
-        f"{hint} Transcribe every supplied page and extract any visible account_id."
+        f"The {len(images)} supplied images are original PDF pages {page_list}, in that order, "
+        f"from document {source_stem}.pdf.{hint} Transcribe every supplied page, preserve "
+        "those original page numbers in page-boundary labels, and extract any visible account_id."
     )
     prompt_path = logger.artifact(
         Path("prompts") / f"OCR-{source_stem}.json",
@@ -1119,7 +1137,11 @@ def _ocr_images(
         raise BenchmarkError(f"{provider_name} OCR returned empty Markdown")
     account_label = account_id.strip() if isinstance(account_id, str) else "UNKNOWN"
     complete_markdown = (
-        f"# OCR agent metadata\n\naccount_id: {account_label}\n\n{markdown.strip()}\n"
+        "# OCR agent metadata\n\n"
+        f"account_id: {account_label}\n\n"
+        f"source_document: {source_stem}.pdf\n\n"
+        f"original_pdf_pages: {page_list}\n\n"
+        f"{markdown.strip()}\n"
     )
     document_name = f"{source_stem}.ocr.md"
     corpus_path = logger.artifact(Path("corpus") / document_name, complete_markdown)
@@ -1131,6 +1153,7 @@ def _ocr_images(
             "response_id": result.response_id,
             "usage": result.usage,
             "value": result.value,
+            "original_pdf_pages": list(source_page_numbers),
             "corpus_document": str(corpus_path.relative_to(logger.run_dir)),
             "attempts": attempt_timings,
         },
@@ -1141,6 +1164,7 @@ def _ocr_images(
         "ocr_completed",
         provider=provider_name,
         account_id=account_id,
+        original_pdf_pages=list(source_page_numbers),
         response_id=result.response_id,
         usage=result.usage,
         artifact=str(decision_path.relative_to(logger.run_dir)),
@@ -1158,6 +1182,7 @@ def _ocr_images(
     )
     summary = {
         "page_count": len(images),
+        "original_pdf_pages": list(source_page_numbers),
         "source_document": f"{source_stem}.pdf",
         "account_id": account_id,
         "account_id_hint": account_id_hint,
