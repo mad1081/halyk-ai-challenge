@@ -115,6 +115,16 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("Relationship and status tests are covenant-specific", CATEGORY_PARTITION_POLICY)
         self.assertIn("exact KYC or governing rule designated", CATEGORY_PARTITION_POLICY)
         self.assertIn("do not infer `related party`", CATEGORY_PARTITION_POLICY)
+
+    def test_category_policy_keeps_payment_purpose_separate_from_relationship(self) -> None:
+        self.assertIn(
+            "A payment to a related party or affiliate is not automatically a Restricted Payment",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn(
+            "transactions that satisfy the restricted payment-purpose predicate",
+            CATEGORY_PARTITION_POLICY,
+        )
         self.assertIn("subsidiary, restricted, unrestricted", CATEGORY_PARTITION_POLICY)
 
     def test_final_cutoff_period_applies_across_period_based_metrics(self) -> None:

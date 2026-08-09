@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.4 — Separate affiliate status from restricted-payment purpose
+
+**What changed:** Added a general predicate rule that an affiliate or related-party counterparty does not by itself turn an explicitly described advisory, consulting, marketing, rent, payroll, interest, or operating payment into a Restricted Payment or distribution.
+
+**Why:** Private 10x stability was tied 5/5 on one conditional covenant because half of the independent samples conflated the counterparty relationship with the transaction purpose. The ledger and governing clause require both predicates.
+
+**Validation:** Run unit tests and a fresh private stability pass before using the resulting submission.
+
 All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
