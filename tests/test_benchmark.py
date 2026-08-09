@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from halyk_agent.benchmark import (
+    BenchmarkError,
     CATEGORY_PARTITION_POLICY,
     DocumentCatalog,
     SYSTEM_PROMPT,
@@ -13,6 +14,7 @@ from halyk_agent.benchmark import (
     _ocr_account_hint,
     _source_pdf_page_numbers,
     benchmark_schema,
+    run_live_benchmark,
 )
 from halyk_agent.extraction.pipeline import (
     _low_text_page_numbers,
@@ -22,6 +24,24 @@ from halyk_agent.extraction.pipeline import (
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_private_generation_requires_submission_identity_before_api(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "documents").mkdir()
+            (root / "master_ledger_2025.csv").write_text("placeholder\n", encoding="utf-8")
+            (root / "submission_template.json").write_text("{}\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                BenchmarkError, "requires both --team and --contact-email"
+            ):
+                run_live_benchmark(
+                    dataset=root,
+                    documents_dir=root / "documents",
+                    output_dir=root / "run",
+                    providers=(),
+                    env_file=root / ".env",
+                )
+
     def test_category_partition_policy_requires_primary_evidence(self) -> None:
         self.assertIn("A broad bucket is not an automatic accounting roll-up", CATEGORY_PARTITION_POLICY)
         self.assertIn("row-specific reclassification", CATEGORY_PARTITION_POLICY)

@@ -338,6 +338,8 @@ def run_live_benchmark(
     retries: int = 1,
     concurrency: int = 7,
     scenario_deadline_seconds: float = 600.0,
+    team: str | None = None,
+    contact_email: str | None = None,
 ) -> dict[str, Any]:
     if retries < 0:
         raise ValueError("retries must be zero or positive")
@@ -362,8 +364,11 @@ def run_live_benchmark(
     )
 
     layout = materialize_dataset(dataset, output_dir / "work")
-    if layout.ground_truth_path is None:
-        raise BenchmarkError("Live benchmark requires public ground_truth.json")
+    if layout.ground_truth_path is None and (not team or not contact_email):
+        raise BenchmarkError(
+            "Private generation without ground_truth.json requires both "
+            "--team and --contact-email"
+        )
     template = layout.load_template()
     scenarios = tuple(template["answers"].keys())
     ledger = LedgerIndex.from_csv(layout.ledger_path)
@@ -380,6 +385,7 @@ def run_live_benchmark(
         "catalog_document_count": len(catalog.records),
         "scan_document_count": len(scan_image_groups),
         "scan_page_count": sum(len(group) for group in scan_image_groups),
+        "has_ground_truth": layout.ground_truth_path is not None,
         "accounts": accounts,
     }
     root_logger.artifact("dataset.json", dataset_summary)
@@ -408,6 +414,8 @@ def run_live_benchmark(
             retries=retries,
             concurrency=concurrency,
             scenario_deadline_seconds=scenario_deadline_seconds,
+            team=team,
+            contact_email=contact_email,
         )
 
     comparison = {
@@ -422,7 +430,7 @@ def run_live_benchmark(
         elapsed_seconds=benchmark_elapsed,
         elapsed_minutes=round(benchmark_elapsed / 60, 4),
         scores={
-            name: summary.get("evaluation", {}).get("proxy_score")
+            name: (summary.get("evaluation") or {}).get("proxy_score")
             for name, summary in provider_summaries.items()
         },
     )
@@ -440,17 +448,21 @@ def _run_provider(
     ledger: LedgerIndex,
     catalog: DocumentCatalog,
     scan_image_groups: tuple[tuple[Path, ...], ...],
-    ground_truth_path: Path,
+    ground_truth_path: Path | None,
     retries: int,
     concurrency: int,
     scenario_deadline_seconds: float,
+    team: str | None,
+    contact_email: str | None,
 ) -> dict[str, Any]:
     logger = JsonlRunLogger(output_dir)
     selected_settings = replace(settings, requested_provider=provider_name)
     provider_settings = selected_settings.select()
     submission = json.loads(json.dumps(template))
-    submission["team"] = "live-eval"
-    submission["contact_email"] = "eval@local.invalid"
+    submission["team"] = team or str(template.get("team") or "live-eval")
+    submission["contact_email"] = contact_email or str(
+        template.get("contact_email") or "eval@local.invalid"
+    )
     submission["model"] = provider_settings.model
     started = time.perf_counter()
     usage_totals = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -634,10 +646,17 @@ def _run_provider(
         failure_count=len(failures),
     )
 
-    # Ground truth is opened only after every model response has been collected.
-    ground_truth = json.loads(ground_truth_path.read_text(encoding="utf-8-sig"))
-    evaluation = evaluate_submission(submission, ground_truth)
-    evaluation_path = logger.artifact("evaluation.json", evaluation)
+    # Public truth is opened only after model responses. Private generation is
+    # deliberately identical but stops after producing the submission.
+    evaluation_summary = None
+    evaluation_path = None
+    if ground_truth_path is not None:
+        ground_truth = json.loads(ground_truth_path.read_text(encoding="utf-8-sig"))
+        evaluation = evaluate_submission(submission, ground_truth)
+        evaluation_path = logger.artifact("evaluation.json", evaluation)
+        evaluation_summary = {
+            key: value for key, value in evaluation.items() if key != "cells"
+        }
     elapsed = round(time.perf_counter() - started, 4)
     completed_count = sum("error" not in result for result in scenario_results.values())
     summary = {
@@ -656,13 +675,15 @@ def _run_provider(
             scenario: scenario_results[scenario].get("timing", {})
             for scenario in scenarios
         },
-        "evaluation": {
-            key: value for key, value in evaluation.items() if key != "cells"
-        },
+        "evaluation": evaluation_summary,
         "artifacts": {
             "events": "events.jsonl",
             "submission": str(submission_path.relative_to(logger.run_dir)),
-            "evaluation": str(evaluation_path.relative_to(logger.run_dir)),
+            "evaluation": (
+                str(evaluation_path.relative_to(logger.run_dir))
+                if evaluation_path is not None
+                else None
+            ),
         },
     }
     logger.artifact("summary.json", summary)

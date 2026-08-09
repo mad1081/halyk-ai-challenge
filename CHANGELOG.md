@@ -4,6 +4,18 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Private generation without answer-key leakage
+
+**What changed:** `live-eval` no longer requires `ground_truth.json`. Public
+runs still score after every model response is collected; private runs stop
+after writing `submission.json` and report a null evaluation. Private
+generation requires explicit `--team` and `--contact-email` values.
+
+**Why:** The challenge private archive should contain the ledger, PDFs, and
+submission template but not its answer key. The previous public-only guard
+would have aborted before the first API call during the three-hour final
+window, and benchmark placeholder identity fields were unsafe for upload.
+
 ### Native-text page corruption guard
 
 **What changed:** Page-level OCR routing now counts alphabetic characters

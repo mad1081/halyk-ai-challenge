@@ -60,13 +60,21 @@ def build_parser() -> argparse.ArgumentParser:
     llm_parser.add_argument("--env-file", type=Path, default=Path(".env"))
 
     benchmark_parser = subparsers.add_parser(
-        "live-eval", help="run the covenant agent and score both live LLM providers"
+        "live-eval",
+        help="generate covenant answers and score them when ground truth is present",
     )
     benchmark_parser.add_argument("dataset", type=Path)
     benchmark_parser.add_argument("--documents-dir", type=Path, required=True)
     benchmark_parser.add_argument("--scan-images-dir", type=Path)
     benchmark_parser.add_argument("--output-dir", type=Path, required=True)
     benchmark_parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    benchmark_parser.add_argument(
+        "--team", help="submission team name; required when ground truth is absent"
+    )
+    benchmark_parser.add_argument(
+        "--contact-email",
+        help="submission contact email; required when ground truth is absent",
+    )
     benchmark_parser.add_argument(
         "--providers",
         nargs="+",
@@ -251,6 +259,8 @@ def _live_eval(args) -> int:
         retries=args.retries,
         concurrency=args.concurrency,
         scenario_deadline_seconds=args.scenario_deadline,
+        team=args.team,
+        contact_email=args.contact_email,
     )
     output = {
         name: {

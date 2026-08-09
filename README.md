@@ -97,6 +97,25 @@ halyk-agent live-eval .\agentic-bank-public `
 extraction root containing multiple `scan-<pdf-stem>` directories. If omitted,
 the command discovers those sibling directories next to `--documents-dir`.
 
+The same command is the private-dataset generator. When `ground_truth.json` is
+absent it writes the completed submission without attempting to score it;
+submission identity is required explicitly so an upload cannot retain local
+benchmark placeholders:
+
+```powershell
+halyk-agent live-eval .\agentic-bank-private `
+  --documents-dir .\runs\private\documents `
+  --scan-images-dir .\runs\private `
+  --output-dir .\runs\private-final `
+  --providers openai `
+  --concurrency 12 `
+  --team "YOUR TEAM" `
+  --contact-email "YOUR EMAIL"
+```
+
+The upload candidate is `runs/private-final/openai/submission.json`. Its
+summary contains `"evaluation": null` because private truth is unavailable.
+
 Each provider directory contains `events.jsonl`, complete redacted API
 request/response JSON, prompts, decisions, OCR transcript, `submission.json`,
 `evaluation.json`, and `summary.json`. Timings include seconds and minutes for
