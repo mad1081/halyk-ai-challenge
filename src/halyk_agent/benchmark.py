@@ -183,10 +183,13 @@ class DocumentCatalog:
         if primary_entity is None or max_related_documents <= 0:
             return RetrievalBundle(direct, primary_entity, direct_names, {})
 
-        entity_needle = primary_entity.casefold()
+        # PDF extraction frequently wraps a legal name across a physical line.
+        # Collapse whitespace so accountless parent reports remain linkable.
+        entity_needle = " ".join(primary_entity.casefold().split())
         related = []
         for record in self.records:
-            if record.name in direct_names or entity_needle not in record.text.casefold():
+            searchable_text = " ".join(record.text.casefold().split())
+            if record.name in direct_names or entity_needle not in searchable_text:
                 continue
             score = _document_relevance_score(record.text)
             if score > 0:
@@ -336,7 +339,7 @@ CATEGORY_PARTITION_POLICY = """Financial-category evidence and formula-topology 
 - Treat final audit cutoff or performance-period evidence as an independent transaction attribute. When final evidence states when the underlying goods or services were delivered or performed, apply that period to every period-based covenant using the same transaction, even if the disclosure appears under a heading for one financial statement line, unless the disclosure expressly limits its effect to that line. Do not include a current-period payment or invoice for goods or services performed outside the covenant period merely because its cash or invoice date falls inside the period.
 - Except for a documented subset or signed adjustment bridge, do not silently roll a separately named numerator or overhead category into generic Operating Expenses or EBITDA. Check for duplicate transaction IDs within each additive bucket and across genuinely mutually exclusive sibling buckets.
 - Relationship and status tests are covenant-specific. Apply the exact KYC or governing rule designated for that predicate; do not infer `related party` from a separate label such as subsidiary, restricted, unrestricted, owner, or affiliate unless the designated rule expressly maps that label.
-- Keep payment-purpose predicates separate from relationship predicates. A payment to a related party or affiliate is not automatically a Restricted Payment, distribution, dividend, or other specially named payment type. Preserve an explicit narrower ledger purpose such as advisory, consulting, marketing, rent, payroll, interest, or operating cost unless the governing definition expressly includes it or final row-specific evidence reclassifies it. For a conditional restriction, report `actual` as the measured amount of transactions that satisfy the restricted payment-purpose predicate; a transaction excluded from that predicate contributes zero even if its counterparty satisfies the relationship test.
+- For this challenge's covenants using the otherwise undefined phrase `Restricted Payments and distributions` to related parties or affiliates, include every ledger outflow to a counterparty that satisfies the governing relationship test, regardless of the transaction's accounting description. The dataset will not necessarily label such rows as Restricted Payment, distribution, or dividend. If the governing agreement supplies a narrower explicit definition, follow that definition instead. After identifying included outflows, apply every expressly permitted basket, deduction, or exception; the explicit accounting description still determines basket eligibility. For a conditional restriction whose trigger is not met, status is COMPLIANT but `actual` remains the measured post-basket outgoing-payment aggregate rather than zero.
 - When a designated KYC source says a holding is indirect and requires an effective voting interest, multiply the percentages along the ownership chain. Do not use a downstream entity's headline percentage as the Group's direct percentage when the source supplies the upstream ownership share.
 - Derive hidden capital additions from an authoritative property, plant and equipment roll-forward when the covenant requires Group CapEx and no more direct CapEx total is supplied. With no disposals, additions/CapEx = ending net book value - beginning net book value + depreciation charge. If disposals exist, incorporate their stated net book value consistently. Depreciation itself is not CapEx. Use this roll-forward result as consolidated Group CapEx only when the document scope is the relevant consolidated Group and preserve full precision before rounding."""
 

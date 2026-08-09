@@ -1,12 +1,20 @@
 # Changelog
 
-## v3.4 — Separate affiliate status from restricted-payment purpose
+## v3.4 — Apply the organizer's restricted-payment interpretation
 
-**What changed:** Added a general predicate rule that an affiliate or related-party counterparty does not by itself turn an explicitly described advisory, consulting, marketing, rent, payroll, interest, or operating payment into a Restricted Payment or distribution.
+**What changed:** Undefined `Restricted Payments and distributions` now includes every outflow to a counterparty satisfying the covenant's relationship test, regardless of its ledger description. An explicit narrower contract definition still controls when present.
 
-**Why:** Private 10x stability was tied 5/5 on one conditional covenant because half of the independent samples conflated the counterparty relationship with the transaction purpose. The ledger and governing clause require both predicates.
+**Why:** Private 10x stability tied 5/5 on this interpretation. The organizer clarified directly that counterparty status is sufficient, every outgoing payment is included, and no explicit Restricted Payment/distribution/dividend ledger label will be present.
 
-**Validation:** Run unit tests and a fresh private stability pass before using the resulting submission.
+**Validation:** The official clarification resolves the semantic tie; run unit tests and regenerate the final submission.
+
+## v3.5 — Recover line-wrapped ultimate-parent reports
+
+**What changed:** Entity-linked retrieval now collapses PDF whitespace before matching a borrower's legal name.
+
+**Why:** In a private consolidated parent report, `Ekibastuz Power Assets` and `JSC` were split across adjacent extracted lines. Exact substring matching therefore omitted the report from X3 even though it contained the decisive Group debt and EBITDA figures.
+
+**Result:** The recovered report gives Group debt of $118,447,382.61 and Group EBITDA of $32,905,118.44, so leverage is 3.5997x and activates the 3.40x conditional restriction.
 
 All notable implementation changes and experiment decisions are recorded here.
 

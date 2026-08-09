@@ -116,13 +116,17 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("exact KYC or governing rule designated", CATEGORY_PARTITION_POLICY)
         self.assertIn("do not infer `related party`", CATEGORY_PARTITION_POLICY)
 
-    def test_category_policy_keeps_payment_purpose_separate_from_relationship(self) -> None:
+    def test_category_policy_handles_undefined_restricted_payments_as_outflows(self) -> None:
         self.assertIn(
-            "A payment to a related party or affiliate is not automatically a Restricted Payment",
+            "include every ledger outflow to a counterparty that satisfies the governing relationship test",
             CATEGORY_PARTITION_POLICY,
         )
         self.assertIn(
-            "transactions that satisfy the restricted payment-purpose predicate",
+            "apply every expressly permitted basket, deduction, or exception",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn(
+            "actual` remains the measured post-basket outgoing-payment aggregate rather than zero",
             CATEGORY_PARTITION_POLICY,
         )
         self.assertIn("subsidiary, restricted, unrestricted", CATEGORY_PARTITION_POLICY)
@@ -229,6 +233,28 @@ class BenchmarkTests(unittest.TestCase):
             self.assertEqual(
                 [record.name for record in bundle.records],
                 ["agreement.md", "group.md"],
+            )
+
+    def test_entity_link_survives_pdf_line_break_inside_legal_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "agreement.md").write_text(
+                "Loan agreement for Ekibastuz Power Assets JSC, account ACC-7832.",
+                encoding="utf-8",
+            )
+            (directory / "parent.md").write_text(
+                "Ereymentau Energy Holding JSC Consolidated Financial Statements. "
+                "The thermal power subsidiary is Ekibastuz Power Assets\nJSC. "
+                "EBITDA and capital expenditure covenant information.",
+                encoding="utf-8",
+            )
+            catalog = DocumentCatalog.from_directory(directory)
+
+            bundle = catalog.for_borrower("ACC-7832")
+
+            self.assertEqual(
+                [record.name for record in bundle.records],
+                ["agreement.md", "parent.md"],
             )
 
     def test_compaction_keeps_covenant_and_correction_evidence(self) -> None:
