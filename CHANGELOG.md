@@ -20,12 +20,11 @@ answer.
 **What changed:** Re-ran the corrected solver three independent times against
 the affected private scenario after the generic threshold/add-back prompt fix.
 
-**Result:** All three runs independently returned the same core answer
-(`BREACH`, `2,632,543.20`). Two selected the threshold-ineligible adjustment
-row as counterfactual evidence; one selected the directly excessive CapEx row.
-This confirms the source-level core correction is reproducible while preserving
-the scoring-aware evidence policy. The private answers and dataset remain
-outside Git.
+**Result:** All three runs independently returned the same source-adjudicated
+core answer. Two selected the threshold-ineligible adjustment row as
+counterfactual evidence; one selected the directly excessive CapEx row. This
+confirms the core correction is reproducible while preserving the scoring-aware
+evidence policy. Private answers and dataset contents remain outside Git.
 
 ## v3.6 — Scoring-aware breach evidence consensus
 
@@ -51,9 +50,12 @@ transaction override.
 
 **What changed:** Entity-linked retrieval now collapses PDF whitespace before matching a borrower's legal name.
 
-**Why:** In a private consolidated parent report, `Ekibastuz Power Assets` and `JSC` were split across adjacent extracted lines. Exact substring matching therefore omitted the report from X3 even though it contained the decisive Group debt and EBITDA figures.
+**Why:** In a consolidated parent report, the entity's legal name was split
+across adjacent extracted lines. Exact substring matching therefore omitted a
+decisive Group-level report.
 
-**Result:** The recovered report gives Group debt of $118,447,382.61 and Group EBITDA of $32,905,118.44, so leverage is 3.5997x and activates the 3.40x conditional restriction.
+**Result:** Whitespace-normalized matching recovered the report and allowed the
+solver to evaluate the conditional restriction from its Group-level figures.
 
 ## v3.6 — Leakage-free stability consensus
 
@@ -99,9 +101,9 @@ choices without inventing an answer key.
 
 ### Private identifier compatibility
 
-**What changed:** Account detection now recognizes the private `TELE-*` account
-prefix in addition to `ACC-*`, and transaction detection accepts multi-segment
-IDs such as `TXN-KC-CAP-29` while retaining the public format.
+**What changed:** Account detection accepts the additional valid account prefix
+present in the final archive, and transaction detection accepts multi-segment
+IDs while retaining the public format.
 
 **Why:** The private ledger introduced valid identifiers outside the public
 dataset's narrower naming convention. Without this change, OCR account hints

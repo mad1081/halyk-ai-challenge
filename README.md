@@ -24,6 +24,30 @@ documents by borrower account, sends one structured task per scenario, writes a
 submission, and scores it against public ground truth. The `mvp` command remains
 the deterministic no-API inspection path.
 
+For a five-minute review path, start with
+[docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md), then read
+[CHANGELOG.md](CHANGELOG.md) for the measured iteration history.
+
+## Repository map
+
+| Path | Purpose |
+|---|---|
+| `src/halyk_agent/extraction/` | Native PDF extraction, quality checks, page routing, OCR fallbacks, and provenance manifests. |
+| `src/halyk_agent/benchmark.py` | Retrieval, evidence assembly, covenant prompt, provider execution, and submission generation. |
+| `src/halyk_agent/fx.py` | Deterministic invoice/settlement FX normalization and PPE roll-forward calculations. |
+| `src/halyk_agent/stability.py` | Concurrent independent repetitions, timing, usage, and per-cell stability reports. |
+| `src/halyk_agent/consensus.py` | Leakage-free atomic consensus over independent private samples. |
+| `src/halyk_agent/runlog.py` | Ordered JSONL event and API artifact logging with credential redaction. |
+| `src/halyk_agent/evaluation.py` | Public answer-key scorer used only after generation. |
+| `tests/` | Contract, extraction, OCR routing, FX, retrieval, consensus, logging, and evaluation regression tests. |
+| `docs/` | Architecture, experiments, OCR research, organizer clarifications, and reviewer guide. |
+| `runs/` | Generated prompts, responses, decisions, submissions, timings, and stability artifacts; intentionally Git-ignored. |
+| `.env.example` | Provider/model configuration with blank credentials. |
+
+No private covenant answer table or scenario-specific outcome override exists in
+`src/`. Focused execution filters which scenario is solved; it does not supply
+that scenario's answer.
+
 ## Quick start
 
 Requires Python 3.11 or newer. The core has no third-party Python dependency.
