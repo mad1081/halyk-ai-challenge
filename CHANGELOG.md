@@ -23,6 +23,28 @@ Five focused tests cover derived rates, exact reference matches, signs,
 conflicts, missing links, and European number separators. Full paid stability
 evaluation remains pending.
 
+### Experiment refinement — formula topology, not global disjointness
+
+**What changed:** Narrowed the category-partition policy after its first 10-run
+stability result. Only additive base categories that truly compete are now
+required to be disjoint. The policy separately models numerator subsets,
+signed EBITDA adjustment bridges, and covenant-specific relationship/status
+predicates. It also states that broad accounting buckets do not automatically
+absorb narrower expense rows without formula-specific or final-audit evidence.
+
+**Why:** The first policy made personnel coverage and overhead calculations
+stable, but its global disjointness language caused four new failure modes: it
+rolled utility and telecom rows into a generic operating-expense bucket; it
+removed auditor-scheduled expenses from the base before adding qualifying
+items back; it excluded a restricted asset transfer from a total-CapEx
+denominator; and it inferred related-party status from an independent
+subsidiary-status schedule.
+
+**Result:** The original experiment improved clean mean score from 0.9649 to
+0.9734 and made the two target cells perfect in all 10 runs, but the four new
+flaky cells show that the first wording is unsafe to merge. This refinement is
+covered by prompt-regression tests and still requires a new paid stability run.
+
 ### Experiment — evidence-backed, disjoint category partitions
 
 **What changed:** Replaced the ambiguous personnel-category exception with a

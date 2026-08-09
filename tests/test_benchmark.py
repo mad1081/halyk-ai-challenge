@@ -21,14 +21,30 @@ from halyk_agent.extraction.pipeline import (
 
 class BenchmarkTests(unittest.TestCase):
     def test_category_partition_policy_requires_primary_evidence(self) -> None:
-        self.assertIn("explicit primary ledger category", CATEGORY_PARTITION_POLICY)
+        self.assertIn("A broad bucket is not an automatic accounting roll-up", CATEGORY_PARTITION_POLICY)
         self.assertIn("row-specific reclassification", CATEGORY_PARTITION_POLICY)
         self.assertIn("generic reference to `related expenses`", CATEGORY_PARTITION_POLICY)
         self.assertIn("social and other taxes", CATEGORY_PARTITION_POLICY)
         self.assertIn("insurance premiums", CATEGORY_PARTITION_POLICY)
         self.assertIn("travel costs", CATEGORY_PARTITION_POLICY)
-        self.assertIn("mutually exclusive covenant buckets", CATEGORY_PARTITION_POLICY)
-        self.assertIn("transaction-ID sets for duplicates", CATEGORY_PARTITION_POLICY)
+        self.assertIn("Never classify from the counterparty name", CATEGORY_PARTITION_POLICY)
+
+    def test_category_policy_distinguishes_formula_set_topologies(self) -> None:
+        self.assertIn("only among mutually exclusive additive base categories", CATEGORY_PARTITION_POLICY)
+        self.assertIn("numerator may be a documented subset of its denominator", CATEGORY_PARTITION_POLICY)
+        self.assertIn("signed adjustment bridge", CATEGORY_PARTITION_POLICY)
+        self.assertIn("reversing adjustment is intentional", CATEGORY_PARTITION_POLICY)
+        self.assertIn("threshold-ineligible adjustment remains in the base", CATEGORY_PARTITION_POLICY)
+        self.assertNotIn(
+            "partition included transaction IDs into mutually exclusive covenant buckets",
+            CATEGORY_PARTITION_POLICY,
+        )
+
+    def test_category_policy_keeps_relationship_predicates_covenant_specific(self) -> None:
+        self.assertIn("Relationship and status tests are covenant-specific", CATEGORY_PARTITION_POLICY)
+        self.assertIn("exact KYC or governing rule designated", CATEGORY_PARTITION_POLICY)
+        self.assertIn("do not infer `related party`", CATEGORY_PARTITION_POLICY)
+        self.assertIn("subsidiary, restricted, unrestricted", CATEGORY_PARTITION_POLICY)
 
     def test_category_partition_policy_is_general_not_fixture_specific(self) -> None:
         self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
