@@ -4,6 +4,7 @@ Record comparable experiments here. Generated raw artifacts stay in `runs/`.
 
 | ID | Branch/commit | Dataset | Change | Score | Latency | Decision |
 |---|---|---|---|---:|---:|---|
+| fx-normalization-005 | `experiment/fx-normalization` | public-v1 | Deterministic auditor FX-pair extraction and foreign-ledger normalization | pending | no paid run | Unit/local P3 arithmetic verified; require 10x stability before merge |
 | baseline-000 | `main` | public-v1 | Deterministic ingestion/eval scaffold | N/A | N/A | Foundation |
 | public-openai-001 | working tree | `f4fe39f...` | `gpt-5.6-sol`, original sequential live baseline | 0.7861 | 13.92 min | Current accuracy leader; rerun with concurrency later |
 | public-anthropic-001 | working tree | `f4fe39f...` | `claude-sonnet-5`, 7 concurrent scenario calls | 0.7000 | 10.07 min | Complete baseline; improve retrieval/calculation before model tuning |

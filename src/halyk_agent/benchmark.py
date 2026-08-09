@@ -16,6 +16,7 @@ from typing import Any
 
 from halyk_agent.dataset import dataset_fingerprint, materialize_dataset
 from halyk_agent.evaluation import evaluate_submission
+from halyk_agent.fx import build_fx_normalization
 from halyk_agent.ledger import LedgerIndex
 from halyk_agent.llm import InputImage, LlmApiError, LlmSettings, build_provider
 from halyk_agent.llm.transport import UrllibJsonTransport
@@ -1180,6 +1181,7 @@ def _build_user_prompt(
     ledger_csv = _transactions_csv(transactions)
     evidence_candidates = _evidence_candidate_excerpt(retrieval.records)
     control_totals = _transaction_control_totals(transactions)
+    fx_normalization = build_fx_normalization(retrieval.records, transactions)
     return (
         f"Analyze scenario {scenario}, borrower account_id {account_id}.\n"
         f"Inferred borrower legal entity: {retrieval.primary_entity or 'unknown'}.\n"
@@ -1193,6 +1195,13 @@ def _build_user_prompt(
         + (evidence_candidates or "No explicit transaction-linked correction was found.\n")
         + "\nDETERMINISTIC LEDGER CONTROL TOTALS (sanity checks, not covenant answers):\n"
         + control_totals
+        + (
+            "\nDETERMINISTIC FX NORMALIZATION (arithmetic aid; source documents "
+            "remain authoritative):\n"
+            + fx_normalization
+            if fx_normalization
+            else ""
+        )
         + "\nTRANSACTION LEDGER FOR THIS BORROWER:\n"
         + ledger_csv
         + "\nFINAL CHECKLIST:\n"

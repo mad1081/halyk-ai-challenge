@@ -4,6 +4,25 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Experiment — deterministic FX normalization
+
+**What changed:** Added a source-grounded FX-pair extractor and a deterministic
+prompt section that derives unit rates with `Decimal`, links them to non-USD
+ledger rows by currency and counterparty, preserves transaction signs, and
+shows the exact conversion formula and provenance.
+
+**Why:** In the v2.3 stability baseline, P3/6.1 was correct in only 3/10 runs.
+Seven runs mistook the USD side of a small auditor reference pair for the USD
+value of a different, much larger EUR transaction. The relevant document and
+ledger row had been retrieved in every run, so this is a calculation-structure
+experiment rather than another retrieval or LLM-review pass.
+
+**Safety:** Conflicting rates are reported and never selected automatically;
+rows without an explicit counterparty-linked reference pair are unchanged.
+Five focused tests cover derived rates, exact reference matches, signs,
+conflicts, missing links, and European number separators. Full paid stability
+evaluation remains pending.
+
 ### v2.3 — currency/category stability baseline
 
 **What changed:** Added an explicit all-currency check and prohibited silently
