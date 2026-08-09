@@ -235,6 +235,18 @@ The repository supports a routed cascade instead of trusting one parser:
 5. Docling plus RapidOCR for local scanned/mixed-document and table fallback.
 6. OCRmyPDF plus `pdftotext` as an emergency local fallback, when installed.
 
+In the final private run, AnyDoc's Python environment did not have the module
+installed for that process, so the cascade correctly fell back to `pdftotext`
+for all 302 documents — this is the intended graceful degradation, to test the
+fallback, not a defect. AnyDoc and `pdftotext` are the two backends actually
+exercised across every real run to date: AnyDoc for the public dataset,
+`pdftotext` for the private submission. Docling and OCRmyPDF remain available
+as a deeper fallback for cases neither backend can handle, but neither has
+been exercised by a real run: OCRmyPDF needs extra installation steps (a
+separate Tesseract binary plus non-English language packs), and Docling's
+RapidOCR path needs a C++ build toolchain that was not available when testing
+on this machine.
+
 The minimum final-solution setup is the core `.venv`, an OpenAI key, and Poppler
 on `PATH`. Install Poppler for Windows using your normal package manager or a
 trusted binary distribution, then verify all four commands before extraction:
