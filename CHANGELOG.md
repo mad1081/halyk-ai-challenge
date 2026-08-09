@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.9 — Final main-branch public smoke
+
+**Result:** A fresh full public run from the exact pushed `main` commit produced
+35/35 perfect cells after excluding the previously confirmed `P4/6.3` public-key
+defect (`clean score = 1.0000`). The raw score remains `0.9722`, matching the
+earlier ten-run baseline in every repetition. Combined with the 3/3 focused
+private core result, no post-merge regression was observed.
+
 ## v3.8 — Document the reproducible private consensus workflow
 
 **What changed:** Added the exact blind-consensus and focused-adjudication CLI
