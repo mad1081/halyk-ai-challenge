@@ -70,8 +70,6 @@ def run_stability_benchmark(
     )
 
     layout = materialize_dataset(dataset, output_dir / "work")
-    if layout.ground_truth_path is None:
-        raise BenchmarkError("Stability benchmark requires public ground_truth.json")
     template = layout.load_template()
     scenarios = tuple(template["answers"].keys())
     ledger = LedgerIndex.from_csv(layout.ledger_path)
@@ -88,6 +86,7 @@ def run_stability_benchmark(
         "catalog_document_count": len(catalog.records),
         "scan_document_count": len(scan_image_groups),
         "scan_page_count": sum(len(group) for group in scan_image_groups),
+        "has_ground_truth": layout.ground_truth_path is not None,
         "accounts": accounts,
     }
     root_logger.artifact("dataset.json", dataset_summary)
@@ -143,7 +142,7 @@ def run_stability_benchmark(
         elapsed_seconds=elapsed,
         elapsed_minutes=round(elapsed / 60, 4),
         score_means={
-            name: summary["score_statistics"]["mean"]
+            name: (summary.get("score_statistics") or {}).get("mean")
             for name, summary in provider_summaries.items()
         },
     )
@@ -161,7 +160,7 @@ def _run_stability_provider(
     ledger: LedgerIndex,
     catalog: DocumentCatalog,
     scan_image_groups: tuple[tuple[Path, ...], ...],
-    ground_truth_path: Path,
+    ground_truth_path: Path | None,
     repetitions: int,
     retries: int,
     concurrency: int,
@@ -197,7 +196,7 @@ def _run_stability_provider(
         )
         for ocr_summary in ocr_summaries:
             _add_usage(usage_totals, ocr_summary["usage"])
-        provider_catalog = DocumentCatalog(catalog.records + tuple(ocr_records))
+        provider_catalog = catalog.with_ocr_records(tuple(ocr_records))
 
     retrieval = {
         scenario: provider_catalog.for_borrower(accounts[scenario])
@@ -313,8 +312,13 @@ def _run_stability_provider(
                     "timing": {},
                 }
 
-    # The answer key is intentionally opened only after all model calls finish.
-    ground_truth = json.loads(ground_truth_path.read_text(encoding="utf-8-sig"))
+    # When present, the answer key is intentionally opened only after all
+    # model calls finish. Private runs instead report consistency only.
+    ground_truth = (
+        json.loads(ground_truth_path.read_text(encoding="utf-8-sig"))
+        if ground_truth_path is not None
+        else None
+    )
     evaluations: list[dict[str, Any]] = []
     submissions: list[dict[str, Any]] = []
     repetition_summaries: list[dict[str, Any]] = []
@@ -340,36 +344,63 @@ def _run_stability_provider(
             _add_usage(run_usage, outcome["usage"])
             _add_usage(usage_totals, outcome["usage"])
 
-        evaluation = evaluate_submission(submission, ground_truth)
+        evaluation = (
+            evaluate_submission(submission, ground_truth)
+            if ground_truth is not None
+            else None
+        )
         run_dir = Path("repetitions") / f"{repetition:03d}"
         submission_path = logger.artifact(run_dir / "submission.json", submission)
-        evaluation_path = logger.artifact(run_dir / "evaluation.json", evaluation)
-        clean_score = _score_excluding(evaluation["cells"], exclusions)
+        evaluation_path = (
+            logger.artifact(run_dir / "evaluation.json", evaluation)
+            if evaluation is not None
+            else None
+        )
         run_summary = {
             "repetition": repetition,
-            "proxy_score": evaluation["proxy_score"],
-            "clean_proxy_score": clean_score,
-            "status_accuracy": evaluation["status_accuracy"],
-            "perfect_cell_count": evaluation["perfect_cell_count"],
+            "evaluation": (
+                {
+                    "proxy_score": evaluation["proxy_score"],
+                    "clean_proxy_score": _score_excluding(
+                        evaluation["cells"], exclusions
+                    ),
+                    "status_accuracy": evaluation["status_accuracy"],
+                    "perfect_cell_count": evaluation["perfect_cell_count"],
+                }
+                if evaluation is not None
+                else None
+            ),
             "failure_count": len(failures),
             "failures": failures,
             "usage": run_usage,
             "scenario_timings": timings,
             "artifacts": {
                 "submission": str(submission_path.relative_to(logger.run_dir)),
-                "evaluation": str(evaluation_path.relative_to(logger.run_dir)),
+                "evaluation": (
+                    str(evaluation_path.relative_to(logger.run_dir))
+                    if evaluation_path is not None
+                    else None
+                ),
             },
         }
         logger.artifact(run_dir / "summary.json", run_summary)
-        evaluations.append(evaluation)
+        if evaluation is not None:
+            evaluations.append(evaluation)
         submissions.append(submission)
         repetition_summaries.append(run_summary)
 
-    stability = aggregate_stability(
-        evaluations=evaluations,
-        submissions=submissions,
-        repetitions=repetitions,
-        exclusions=exclusions,
+    stability = (
+        aggregate_stability(
+            evaluations=evaluations,
+            submissions=submissions,
+            repetitions=repetitions,
+            exclusions=exclusions,
+        )
+        if ground_truth is not None
+        else aggregate_private_consistency(
+            submissions=submissions,
+            repetitions=repetitions,
+        )
     )
     stability_path = logger.artifact("stability.json", stability)
     repetitions_path = logger.artifact("repetitions.json", repetition_summaries)
@@ -388,8 +419,18 @@ def _run_stability_provider(
         "usage": usage_totals,
         "ocr": ocr_summaries,
         "retrieved_document_counts": retrieval_counts,
-        "score_statistics": stability["score_statistics"],
-        "clean_score_statistics": stability["clean_score_statistics"],
+        "score_statistics": stability.get("score_statistics"),
+        "clean_score_statistics": stability.get("clean_score_statistics"),
+        "consistency_statistics": (
+            {
+                "stable_core_cell_count": stability["stable_core_cell_count"],
+                "unstable_core_cell_count": len(stability["unstable_core_cells"]),
+                "stable_full_cell_count": stability["stable_full_cell_count"],
+                "unstable_full_cell_count": len(stability["unstable_full_cells"]),
+            }
+            if ground_truth is None
+            else None
+        ),
         "artifacts": {
             "events": "events.jsonl",
             "stability": str(stability_path.relative_to(logger.run_dir)),
@@ -407,6 +448,72 @@ def _run_stability_provider(
         usage=usage_totals,
     )
     return summary
+
+
+def aggregate_private_consistency(
+    *, submissions: list[dict[str, Any]], repetitions: int
+) -> dict[str, Any]:
+    """Report exact answer stability when private ground truth is unavailable."""
+
+    if len(submissions) != repetitions:
+        raise ValueError("submission count must equal repetitions")
+    cells: dict[str, dict[str, Any]] = {}
+    first_answers = submissions[0]["answers"]
+    for scenario, covenant_map in first_answers.items():
+        for covenant in covenant_map:
+            candidates = [
+                submission["answers"][scenario][covenant]
+                for submission in submissions
+            ]
+            full_distribution = _answer_distribution(candidates)
+            core_candidates = [
+                {"status": item.get("status"), "actual": item.get("actual")}
+                for item in candidates
+            ]
+            core_distribution = _answer_distribution(core_candidates)
+            evidence_distribution: dict[str, int] = {}
+            for item in candidates:
+                label = item.get("evidence_txn_id") or "<null>"
+                evidence_distribution[label] = evidence_distribution.get(label, 0) + 1
+            key = f"{scenario}/{covenant}"
+            cells[key] = {
+                "scenario": scenario,
+                "covenant": covenant,
+                "core_stable": len(core_distribution) == 1,
+                "full_stable": len(full_distribution) == 1,
+                "core_distribution": core_distribution,
+                "evidence_distribution": [
+                    {"count": count, "evidence_txn_id": None if label == "<null>" else label}
+                    for label, count in sorted(
+                        evidence_distribution.items(), key=lambda item: (-item[1], item[0])
+                    )
+                ],
+                "candidate_distribution": full_distribution,
+            }
+    unstable_core = [key for key, cell in cells.items() if not cell["core_stable"]]
+    unstable_full = [key for key, cell in cells.items() if not cell["full_stable"]]
+    return {
+        "repetitions": repetitions,
+        "ground_truth_available": False,
+        "stable_core_cell_count": len(cells) - len(unstable_core),
+        "stable_full_cell_count": len(cells) - len(unstable_full),
+        "unstable_core_cells": unstable_core,
+        "unstable_full_cells": unstable_full,
+        "cells": cells,
+    }
+
+
+def _answer_distribution(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    distribution: dict[str, int] = {}
+    for candidate in candidates:
+        label = json.dumps(candidate, ensure_ascii=False, sort_keys=True)
+        distribution[label] = distribution.get(label, 0) + 1
+    return [
+        {"count": count, "answer": json.loads(label)}
+        for label, count in sorted(
+            distribution.items(), key=lambda item: (-item[1], item[0])
+        )
+    ]
 
 
 def aggregate_stability(

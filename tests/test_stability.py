@@ -5,6 +5,7 @@ import unittest
 from halyk_agent.stability import (
     _parse_excluded_cells,
     _score_excluding,
+    aggregate_private_consistency,
     aggregate_stability,
 )
 
@@ -50,6 +51,22 @@ def _submission(p1_status: str, p2_status: str) -> dict:
 
 
 class StabilityTests(unittest.TestCase):
+    def test_private_consistency_separates_core_from_evidence_variance(self) -> None:
+        submissions = [
+            _submission("BREACH", "COMPLIANT"),
+            _submission("BREACH", "COMPLIANT"),
+        ]
+        submissions[1]["answers"]["P1"]["6.1"]["evidence_txn_id"] = "TXN-P1-1"
+
+        result = aggregate_private_consistency(
+            submissions=submissions, repetitions=2
+        )
+
+        self.assertEqual(result["stable_core_cell_count"], 2)
+        self.assertEqual(result["stable_full_cell_count"], 1)
+        self.assertEqual(result["unstable_core_cells"], [])
+        self.assertEqual(result["unstable_full_cells"], ["P1/6.1"])
+
     def test_aggregate_distinguishes_stable_failure_and_flaky_cell(self) -> None:
         evaluations = [
             _evaluation(0.0, 1.0),

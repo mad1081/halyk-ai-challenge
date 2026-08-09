@@ -23,6 +23,17 @@ or entity name from becoming an orphaned retrieval record. Complete PPE bridges
 are calculated deterministically and injected with their exact arithmetic;
 indirect KYC ownership chains must use effective, multiplied voting interests.
 
+### Private stability harness
+
+**What changed:** `stability-eval` now runs without `ground_truth.json`, performs
+OCR once per provider, repeats all scenario solves concurrently, and reports
+separate distributions for `status + actual` and for evidence IDs. Public runs
+retain their existing score-based evaluation.
+
+**Why:** Private data cannot be scored locally, but repeated independent solves
+can distinguish stable calculations from stochastic classification/evidence
+choices without inventing an answer key.
+
 ### Private identifier compatibility
 
 **What changed:** Account detection now recognizes the private `TELE-*` account

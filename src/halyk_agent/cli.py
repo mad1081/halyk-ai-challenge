@@ -302,6 +302,7 @@ def _stability_eval(args) -> int:
             "usage": summary["usage"],
             "score_statistics": summary["score_statistics"],
             "clean_score_statistics": summary["clean_score_statistics"],
+            "consistency_statistics": summary.get("consistency_statistics"),
         }
         for name, summary in comparison["providers"].items()
     }
