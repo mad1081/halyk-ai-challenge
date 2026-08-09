@@ -60,6 +60,47 @@ class ConsensusTests(unittest.TestCase):
             )
             self.assertEqual(report["sample_count"], 4)
 
+    def test_breach_prefers_supported_evidence_over_null(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            answers = [None, None, "TXN-X-1"]
+            for index, evidence in enumerate(answers, start=1):
+                path = root / "repetitions" / f"{index:03d}" / "submission.json"
+                path.parent.mkdir(parents=True)
+                path.write_text(
+                    json.dumps(
+                        {
+                            "team": "test",
+                            "contact_email": "test@example.com",
+                            "model": "test-model",
+                            "answers": {
+                                "X": {
+                                    "6.1": {
+                                        "status": "BREACH",
+                                        "actual": 1.25,
+                                        "evidence_txn_id": evidence,
+                                    }
+                                }
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            output = root / "submission.json"
+            report = build_consensus_submission(
+                stability_provider_dir=root,
+                output_path=output,
+                team="Ship Happens",
+                contact_email="zhasserik2019@gmail.com",
+            )
+
+            result = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(
+                result["answers"]["X"]["6.1"]["evidence_txn_id"], "TXN-X-1"
+            )
+            self.assertEqual(report["breach_evidence_policy"], "most-supported-non-null")
+
     def test_core_tie_fails_instead_of_guessing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

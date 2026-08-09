@@ -335,7 +335,7 @@ CATEGORY_PARTITION_POLICY = """Financial-category evidence and formula-topology 
 - Foreign-currency normalization changes only the measurement currency and amount; it never erases or creates the category established by the original description and authoritative documents. A normalized foreign-currency cost for direct servicing, maintenance, repair, or process regeneration of the borrower's operating process or asset is direct operating-service evidence and remains an Operating Expense when the formula uses Operating Expenses. Do not demand a separate final reclassification merely because that direct operating-service row is denominated in another currency. This rule does not roll separately labelled utility, telecom, payroll, rent, marketing, tax, insurance, interest, or capital rows into Operating Expenses.
 - Personnel expense includes direct personnel-payment categories such as salary, wages, payroll, or employee compensation. Exclude social and other taxes, insurance premiums, and travel costs unless the governing definition explicitly enumerates that kind of cost or a final audit document expressly classifies the row as personnel expense. A generic reference to `related expenses` is insufficient.
 - Partition transaction IDs only among mutually exclusive additive base categories. Do not force every formula set to be disjoint. A numerator may be a documented subset of its denominator, and the same transaction then belongs in both sets without being double-counted within either sum. A transaction may also have independent attributes such as category, currency, counterparty relationship, and restricted status.
-- Treat an explicit add-back or deduction as a signed adjustment bridge, not as a competing base category. First include every auditor-scheduled expense in the unadjusted expense base; then apply only qualifying add-backs or deductions. The same row appearing once in the base and once as a reversing adjustment is intentional. A threshold-ineligible adjustment remains in the base with no add-back.
+- Treat an explicit add-back or deduction as a signed adjustment bridge, not as a competing base category. First include EVERY expense named in the authoritative adjustment schedule in the unadjusted expense base, even when its ledger description does not literally say `Operating Expense`; then apply only qualifying add-backs or deductions. The same row appearing once in the base and once as a reversing adjustment is intentional. A threshold-ineligible adjustment remains in the base: a threshold-ineligible scheduled expense MUST receive zero add-back, and omitting it from both sides is an arithmetic error. Enumerate every scheduled row, its base treatment, threshold eligibility, and add-back before computing EBITDA. If leverage is within 0.10x of a springing trigger, repeat this bridge row by row before deciding whether the conditional covenant applies.
 - Treat final audit cutoff or performance-period evidence as an independent transaction attribute. When final evidence states when the underlying goods or services were delivered or performed, apply that period to every period-based covenant using the same transaction, even if the disclosure appears under a heading for one financial statement line, unless the disclosure expressly limits its effect to that line. Do not include a current-period payment or invoice for goods or services performed outside the covenant period merely because its cash or invoice date falls inside the period.
 - Except for a documented subset or signed adjustment bridge, do not silently roll a separately named numerator or overhead category into generic Operating Expenses or EBITDA. Check for duplicate transaction IDs within each additive bucket and across genuinely mutually exclusive sibling buckets.
 - Relationship and status tests are covenant-specific. Apply the exact KYC or governing rule designated for that predicate; do not infer `related party` from a separate label such as subsidiary, restricted, unrestricted, owner, or affiliate unless the designated rule expressly maps that label.
@@ -392,6 +392,7 @@ def run_live_benchmark(
     scenario_deadline_seconds: float = 600.0,
     team: str | None = None,
     contact_email: str | None = None,
+    scenario_filter: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     if retries < 0:
         raise ValueError("retries must be zero or positive")
@@ -422,6 +423,13 @@ def run_live_benchmark(
             "--team and --contact-email"
         )
     template = layout.load_template()
+    if scenario_filter:
+        unknown = [scenario for scenario in scenario_filter if scenario not in template["answers"]]
+        if unknown:
+            raise BenchmarkError("Unknown scenario filter: " + ", ".join(unknown))
+        template["answers"] = {
+            scenario: template["answers"][scenario] for scenario in scenario_filter
+        }
     scenarios = tuple(template["answers"].keys())
     ledger = LedgerIndex.from_csv(layout.ledger_path)
     accounts = ledger.scenario_accounts(scenarios)

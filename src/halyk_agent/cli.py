@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--output-dir", type=Path, required=True)
     benchmark_parser.add_argument("--env-file", type=Path, default=Path(".env"))
     benchmark_parser.add_argument(
+        "--scenarios",
+        nargs="+",
+        help="run only these template scenario IDs (useful for focused adjudication)",
+    )
+    benchmark_parser.add_argument(
         "--team", help="submission team name; required when ground truth is absent"
     )
     benchmark_parser.add_argument(
@@ -272,6 +277,7 @@ def _live_eval(args) -> int:
         scenario_deadline_seconds=args.scenario_deadline,
         team=args.team,
         contact_email=args.contact_email,
+        scenario_filter=tuple(args.scenarios) if args.scenarios else None,
     )
     output = {
         name: {

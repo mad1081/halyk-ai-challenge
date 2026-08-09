@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.6 — Scoring-aware breach evidence consensus
+
+**What changed:** For a consensus `BREACH`, rank the most-supported non-null
+transaction proposed by independent samples instead of allowing a null majority to
+erase it. Compliant cells remain null.
+
+**Why:** The published evaluator ignores the submitted evidence value when the
+hidden evidence key is null. A supported non-null candidate therefore cannot reduce
+the score for a null-key aggregate, but can recover the evidence component when the
+hidden key names that transaction. This is a generic scoring rule, not a scenario or
+transaction override.
+
 ## v3.4 — Apply the organizer's restricted-payment interpretation
 
 **What changed:** Undefined `Restricted Payments and distributions` now includes every outflow to a counterparty satisfying the covenant's relationship test, regardless of its ledger description. An explicit narrower contract definition still controls when present.

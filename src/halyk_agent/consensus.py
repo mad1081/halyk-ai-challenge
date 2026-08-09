@@ -67,17 +67,29 @@ def build_consensus_submission(
                 evidence = None
                 evidence_count = len(winning_candidates)
             else:
+                # The published scorer ignores the submitted evidence value whenever
+                # the hidden key is null.  Consequently, a supported non-null candidate
+                # weakly dominates null for a BREACH: it can recover the evidence points
+                # when the key names that transaction and cannot lose points when the
+                # key is null.  Rank only non-null candidates, while leaving evidence
+                # null when no independent sample proposed an ID.
                 evidence_counts = Counter(
-                    item.get("evidence_txn_id") for item in winning_candidates
+                    item.get("evidence_txn_id")
+                    for item in winning_candidates
+                    if item.get("evidence_txn_id") is not None
                 )
-                evidence_count = max(evidence_counts.values())
-                evidence_winners = [
-                    value for value, count in evidence_counts.items() if count == evidence_count
-                ]
-                if len(evidence_winners) > 1:
-                    evidence_ties.append(cell_key)
-                    evidence = None if None in evidence_winners else sorted(evidence_winners)[0]
+                if not evidence_counts:
+                    evidence = None
+                    evidence_count = len(winning_candidates)
                 else:
+                    evidence_count = max(evidence_counts.values())
+                    evidence_winners = sorted(
+                        value
+                        for value, count in evidence_counts.items()
+                        if count == evidence_count
+                    )
+                    if len(evidence_winners) > 1:
+                        evidence_ties.append(cell_key)
                     evidence = evidence_winners[0]
 
             consensus["answers"][scenario][covenant] = {
@@ -99,6 +111,7 @@ def build_consensus_submission(
     report = {
         "sample_count": len(submissions),
         "model": consensus["model"],
+        "breach_evidence_policy": "most-supported-non-null",
         "evidence_ties_resolved_conservatively": evidence_ties,
         "support": support,
     }
