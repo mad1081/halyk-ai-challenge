@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "model": "gpt-5.6-sol",
+  "public_final_smoke": {
+    "scenario_calls": 12,
+    "cell_count": 36,
+    "perfect_cell_count": 35,
+    "raw_proxy_score": 0.9722222222222222,
+    "clean_score_excluding_confirmed_key_defect": 1.0,
+    "excluded_cells": ["P4/6.3"],
+    "elapsed_seconds": 118.0841,
+    "concurrency": 12,
+    "usage": {
+      "input_tokens": 187499,
+      "output_tokens": 40151,
+      "total_tokens": 227650
+    },
+    "source_evaluation_sha256": "CAC170AE65704D1CC5EDB713A44B382ECB56BA77D5D940C70CD86186FFA7BB90"
+  },
+  "public_final_stability": {
+    "repetitions": 10,
+    "completed_solver_tasks": 120,
+    "total_solver_tasks": 120,
+    "raw_score": {
+      "mean": 0.972222,
+      "median": 0.972222,
+      "stddev": 0.0,
+      "min": 0.972222,
+      "max": 0.972222
+    },
+    "clean_score": {
+      "mean": 1.0,
+      "median": 1.0,
+      "stddev": 0.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "elapsed_seconds": 232.8971,
+    "usage": {
+      "input_tokens": 1585864,
+      "output_tokens": 354263,
+      "total_tokens": 1940127
+    },
+    "source_stability_sha256": "F7DBCC07E1A12ED20FF2E9737C3B6AF74F65F9C3D216FC03FFB28EDE4237A272"
+  },
+  "private_validation_aggregate": {
+    "answers_included": false,
+    "template_cell_count": 84,
+    "stability_repetitions": 10,
+    "stable_core_cell_count": 80,
+    "unstable_core_cell_count": 4,
+    "independent_source_audit_cell_count": 84,
+    "focused_post_fix_repetitions": 3,
+    "focused_post_fix_core_agreement": 3,
+    "source_stability_sha256": "1208AF4BA4F0ECED8FB04DBAB2A8C5EBB70D5F055C5CC9165F32EB87D2ECE405"
+  },
+  "confidentiality": {
+    "raw_api_logs_included": false,
+    "prompts_included": false,
+    "documents_included": false,
+    "private_answers_included": false,
+    "credentials_included": false
+  }
+}

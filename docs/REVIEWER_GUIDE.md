@@ -75,6 +75,11 @@ predates the organizer's later generic related-party-payment clarification. Both
 raw and clean metrics are retained in the iteration history instead of hiding
 the discrepancy.
 
+The exact sanitized metrics, token counts, timings, and hashes of the original
+local evaluation artifacts are committed in
+`docs/evaluation/public-final-summary.json`. Full raw logs remain local for the
+confidentiality reasons below.
+
 ## Runtime audit artifacts
 
 Every run writes ordered artifacts below the selected `--output-dir`:

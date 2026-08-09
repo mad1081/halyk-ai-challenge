@@ -27,9 +27,20 @@ submission.json
 # Locally cloned parser sources
 pdf-inspector-source/
 
+# Scratch/local analysis files (private data, personal correspondence)
+scratch_*.csv
+scratch_*.txt
+ACC*_txns.csv
+j1_calc.py
+compute2.py
+compute_tele4471.py
+ORGANISATOR.md
+ORGANISATOR/
+QUESTIONS_FOR_ORGANIZER.md
+
 # OS / IDE
+.claude/
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-

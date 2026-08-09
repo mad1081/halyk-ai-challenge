@@ -27,7 +27,9 @@ deterministic no-API dataset inspection utility; it is not the final solver.
 
 For a five-minute review path, start with
 [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md), then read
-[CHANGELOG.md](CHANGELOG.md) for the measured iteration history.
+[CHANGELOG.md](CHANGELOG.md) for the measured iteration history. Sanitized,
+machine-readable evaluation evidence is in
+[docs/evaluation/public-final-summary.json](docs/evaluation/public-final-summary.json).
 
 ## Repository map
 
@@ -42,6 +44,7 @@ For a five-minute review path, start with
 | `src/halyk_agent/evaluation.py` | Public answer-key scorer used only after generation. |
 | `tests/` | Contract, extraction, OCR routing, FX, retrieval, consensus, logging, and evaluation regression tests. |
 | `docs/` | Architecture, experiments, OCR research, organizer clarifications, and reviewer guide. |
+| `docs/evaluation/` | Small sanitized public metrics and private aggregate validation counts; no documents or model transcripts. |
 | `runs/` | Generated prompts, responses, decisions, submissions, timings, and stability artifacts; intentionally Git-ignored. |
 | `.env.example` | Provider/model configuration with blank credentials. |
 
