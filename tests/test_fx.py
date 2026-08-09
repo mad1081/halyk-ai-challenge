@@ -108,6 +108,23 @@ class FxNormalizationTests(unittest.TestCase):
         self.assertEqual(observations[0].usd_amount, Decimal("83690.23"))
         self.assertEqual(observations[0].usd_per_unit, Decimal("1.16"))
 
+    def test_separate_bank_commission_does_not_hide_settlement_pair(self) -> None:
+        record = Record(
+            "treasury.md",
+            "Расчёты с контрагентом «Rheinland Katalyse GmbH»: "
+            "счёт на сумму 76,384.20 EUR урегулирован платежом "
+            "в долларах США в размере $82,638.45, отражённым за вычетом "
+            "банковской комиссии в размере $1,384.17, которая не входит "
+            "в пересчитываемую сумму.",
+        )
+
+        result = build_fx_normalization(
+            (record,), (transaction("-410297.69"),)
+        )
+
+        self.assertIn("normalized_usd=-443892.39", result)
+        self.assertNotIn("1384.17 USD/EUR", result)
+
 
 if __name__ == "__main__":
     unittest.main()

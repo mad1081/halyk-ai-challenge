@@ -54,6 +54,10 @@ _FX_SIGNALS = (
     "урегулирован",
     "доллар",
 )
+_EXCLUDED_CHARGE = re.compile(
+    r"(?:bank\s+)?(?:fee|commission)|банковск\w*\s+комисс|комисс",
+    re.IGNORECASE,
+)
 _CURRENCY_ALIASES = {
     "$": "USD",
     "US$": "USD",
@@ -83,7 +87,7 @@ def extract_fx_observations(records: Iterable[TextRecord]) -> tuple[FxObservatio
             folded = paragraph.casefold()
             if not any(signal in folded for signal in _FX_SIGNALS):
                 continue
-            amounts = _money_amounts(paragraph)
+            amounts = _money_amounts(paragraph, exclude_separate_charges=True)
             usd_amounts = [amount for currency, amount in amounts if currency == "USD"]
             foreign_amounts = [
                 (currency, amount) for currency, amount in amounts if currency != "USD"
@@ -229,9 +233,15 @@ def build_fx_normalization(
     )
 
 
-def _money_amounts(text: str) -> list[tuple[str, Decimal]]:
+def _money_amounts(
+    text: str, *, exclude_separate_charges: bool = False
+) -> list[tuple[str, Decimal]]:
     amounts: list[tuple[str, Decimal]] = []
     for match in _MONEY.finditer(text):
+        if exclude_separate_charges:
+            prefix = text[max(0, match.start() - 96) : match.start()]
+            if _EXCLUDED_CHARGE.search(prefix):
+                continue
         currency_token = match.group("prefix_currency") or match.group(
             "suffix_currency"
         )

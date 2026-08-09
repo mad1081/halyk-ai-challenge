@@ -121,6 +121,15 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("cash or invoice date", CATEGORY_PARTITION_POLICY)
         self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
 
+    def test_hidden_group_capex_is_derived_from_ppe_rollforward(self) -> None:
+        self.assertIn("property, plant and equipment roll-forward", CATEGORY_PARTITION_POLICY)
+        self.assertIn(
+            "ending net book value - beginning net book value + depreciation charge",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn("Depreciation itself is not CapEx", CATEGORY_PARTITION_POLICY)
+        self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
+
     def test_fx_normalization_preserves_direct_operating_service_category(self) -> None:
         self.assertIn(
             "Foreign-currency normalization changes only the measurement currency and amount",

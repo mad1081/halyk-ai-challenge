@@ -4,6 +4,19 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Private hidden-fact and FX audit
+
+**What changed:** FX extraction now ignores a separately disclosed bank fee
+when identifying an invoice/settlement reference pair, so a deterministic unit
+rate is still calculated. The solver also derives consolidated capital
+additions from a complete PPE roll-forward instead of treating depreciation as
+CapEx or assuming missing Group CapEx is zero.
+
+**Why:** Private stability runs exposed two correlated failure modes: treasury
+paragraphs with a second, explicitly excluded fee bypassed deterministic FX
+normalization, and an image-only PPE note required the hidden identity `ending
+NBV - beginning NBV + depreciation` when disposals were zero.
+
 ### Private identifier compatibility
 
 **What changed:** Account detection now recognizes the private `TELE-*` account
