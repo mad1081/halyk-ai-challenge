@@ -48,6 +48,26 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("do not infer `related party`", CATEGORY_PARTITION_POLICY)
         self.assertIn("subsidiary, restricted, unrestricted", CATEGORY_PARTITION_POLICY)
 
+    def test_fx_normalization_preserves_direct_operating_service_category(self) -> None:
+        self.assertIn(
+            "Foreign-currency normalization changes only the measurement currency and amount",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn("never erases or creates the category", CATEGORY_PARTITION_POLICY)
+        self.assertIn(
+            "direct servicing, maintenance, repair, or process regeneration",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn("remains an Operating Expense", CATEGORY_PARTITION_POLICY)
+        self.assertIn(
+            "Do not demand a separate final reclassification merely because",
+            CATEGORY_PARTITION_POLICY,
+        )
+        self.assertIn(
+            "does not roll separately labelled utility, telecom, payroll",
+            CATEGORY_PARTITION_POLICY,
+        )
+
     def test_category_partition_policy_is_general_not_fixture_specific(self) -> None:
         self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
         self.assertIn(CATEGORY_PARTITION_POLICY, SYSTEM_PROMPT)

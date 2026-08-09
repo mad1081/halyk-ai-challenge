@@ -23,6 +23,29 @@ Five focused tests cover derived rates, exact reference matches, signs,
 conflicts, missing links, and European number separators. Full paid stability
 evaluation remains pending.
 
+### Experiment refinement — FX normalization preserves category
+
+**What changed:** Added a narrow bridge between deterministic FX normalization
+and category partitioning. Currency conversion changes a transaction's unit and
+amount only. A normalized foreign-currency row that directly describes
+servicing, maintenance, repair, or process regeneration of an operating asset
+or process remains direct Operating Expense evidence; it does not require a
+separate auditor reclassification merely because it is denominated in another
+currency. Explicit utility, telecom, payroll, rent, marketing, tax, insurance,
+interest, and capital categories remain outside this exception.
+
+**Why:** In the combined candidate, the FX stage correctly normalized the sole
+foreign operating-service row, but the category policy then excluded that row
+in nine of ten runs as a narrower service category. The resulting arithmetic
+was internally consistent but omitted a relevant cost and changed both EBITDA
+and the verdict. The one correct run used the normalized amount while retaining
+the original direct operating-service category.
+
+**Expected result:** Normalization and category classification become
+orthogonal: the FX stage supplies the amount, while the source description
+continues to supply the category. This refinement is locally tested but still
+requires stability measurement before merge.
+
 ### Experiment refinement — formula topology, not global disjointness
 
 **What changed:** Narrowed the category-partition policy after its first 10-run
