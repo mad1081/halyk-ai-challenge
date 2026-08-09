@@ -5,6 +5,7 @@ import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 import hashlib
 import io
 import json
@@ -119,6 +120,49 @@ class DocumentCatalog:
     def for_account(self, account_id: str) -> tuple[DocumentRecord, ...]:
         needle = account_id.casefold()
         return tuple(record for record in self.records if needle in record.text.casefold())
+
+    def with_ocr_records(
+        self, ocr_records: tuple[DocumentRecord, ...]
+    ) -> DocumentCatalog:
+        """Attach vision text to its native source so retrieval cannot orphan it.
+
+        A scanned page may omit both the account ID and legal entity even when
+        its companion PDF is correctly linked to a borrower. Keeping that OCR
+        result as a standalone document would make it unreachable. Merge by the
+        immutable PDF stem and retain unmatched OCR records as fallbacks.
+        """
+
+        ocr_by_companion = {
+            f"{record.name.removesuffix('.ocr.md')}.md": record
+            for record in ocr_records
+            if record.name.endswith(".ocr.md")
+        }
+        merged: list[DocumentRecord] = []
+        matched_ocr_names: set[str] = set()
+        for record in self.records:
+            ocr_record = ocr_by_companion.get(record.name)
+            if ocr_record is None:
+                merged.append(record)
+                continue
+            matched_ocr_names.add(ocr_record.name)
+            combined = (
+                record.text.rstrip()
+                + "\n\n===== OCR / VISION PAGES FROM THE SAME PDF =====\n"
+                + ocr_record.text.strip()
+                + "\n"
+            )
+            merged.append(
+                DocumentRecord(
+                    name=record.name,
+                    path=record.path,
+                    text=combined,
+                    sha256=hashlib.sha256(combined.encode("utf-8")).hexdigest(),
+                )
+            )
+        merged.extend(
+            record for record in ocr_records if record.name not in matched_ocr_names
+        )
+        return DocumentCatalog(tuple(merged))
 
     def for_borrower(
         self, account_id: str, *, max_related_documents: int = 6
@@ -292,6 +336,7 @@ CATEGORY_PARTITION_POLICY = """Financial-category evidence and formula-topology 
 - Treat final audit cutoff or performance-period evidence as an independent transaction attribute. When final evidence states when the underlying goods or services were delivered or performed, apply that period to every period-based covenant using the same transaction, even if the disclosure appears under a heading for one financial statement line, unless the disclosure expressly limits its effect to that line. Do not include a current-period payment or invoice for goods or services performed outside the covenant period merely because its cash or invoice date falls inside the period.
 - Except for a documented subset or signed adjustment bridge, do not silently roll a separately named numerator or overhead category into generic Operating Expenses or EBITDA. Check for duplicate transaction IDs within each additive bucket and across genuinely mutually exclusive sibling buckets.
 - Relationship and status tests are covenant-specific. Apply the exact KYC or governing rule designated for that predicate; do not infer `related party` from a separate label such as subsidiary, restricted, unrestricted, owner, or affiliate unless the designated rule expressly maps that label.
+- When a designated KYC source says a holding is indirect and requires an effective voting interest, multiply the percentages along the ownership chain. Do not use a downstream entity's headline percentage as the Group's direct percentage when the source supplies the upstream ownership share.
 - Derive hidden capital additions from an authoritative property, plant and equipment roll-forward when the covenant requires Group CapEx and no more direct CapEx total is supplied. With no disposals, additions/CapEx = ending net book value - beginning net book value + depreciation charge. If disposals exist, incorporate their stated net book value consistently. Depreciation itself is not CapEx. Use this roll-forward result as consolidated Group CapEx only when the document scope is the relevant consolidated Group and preserve full precision before rounding."""
 
 
@@ -493,7 +538,7 @@ def _run_provider(
         )
         for ocr_summary in ocr_summaries:
             _add_usage(usage_totals, ocr_summary["usage"])
-        provider_catalog = DocumentCatalog(catalog.records + tuple(ocr_records))
+        provider_catalog = catalog.with_ocr_records(tuple(ocr_records))
 
     retrieval = {
         scenario: provider_catalog.for_borrower(accounts[scenario])
@@ -1244,6 +1289,7 @@ def _build_user_prompt(
     evidence_candidates = _evidence_candidate_excerpt(retrieval.records)
     control_totals = _transaction_control_totals(transactions)
     fx_normalization = build_fx_normalization(retrieval.records, transactions)
+    ppe_rollforward = _build_ppe_rollforward(retrieval.records)
     return (
         f"Analyze scenario {scenario}, borrower account_id {account_id}.\n"
         f"Inferred borrower legal entity: {retrieval.primary_entity or 'unknown'}.\n"
@@ -1264,6 +1310,13 @@ def _build_user_prompt(
             if fx_normalization
             else ""
         )
+        + (
+            "\nDETERMINISTIC PPE ROLL-FORWARD (arithmetic aid; use only when "
+            "the governing covenant calls for the matching Group CapEx):\n"
+            + ppe_rollforward
+            if ppe_rollforward
+            else ""
+        )
         + "\nTRANSACTION LEDGER FOR THIS BORROWER:\n"
         + ledger_csv
         + "\nFINAL CHECKLIST:\n"
@@ -1273,6 +1326,52 @@ def _build_user_prompt(
         "- For every BREACH, run the single-transaction counterfactual test and provide "
         "the determining txn_id when one exists, even for a ratio or aggregate.\n"
     )
+
+
+_PPE_BEGINNING = re.compile(
+    r"net book value at the beginning of the year[^$\d]{0,120}\$?\s*([\d,]+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_PPE_DEPRECIATION = re.compile(
+    r"depreciation charge for the year[^$\d]{0,120}\$?\s*([\d,]+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_PPE_ENDING = re.compile(
+    r"net book value at the end of the year[^$\d]{0,120}\$?\s*([\d,]+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+
+
+def _build_ppe_rollforward(records: tuple[DocumentRecord, ...]) -> str:
+    """Derive capital additions from a complete no-disposals PPE bridge."""
+
+    results: list[str] = []
+    for record in records:
+        folded = record.text.casefold()
+        if "there were no disposals of property, plant and equipment" not in folded:
+            continue
+        matches = (
+            _PPE_BEGINNING.search(record.text),
+            _PPE_DEPRECIATION.search(record.text),
+            _PPE_ENDING.search(record.text),
+        )
+        if any(match is None for match in matches):
+            continue
+        try:
+            beginning, depreciation, ending = (
+                Decimal(match.group(1).replace(",", "")) for match in matches
+            )
+        except (InvalidOperation, AttributeError):
+            continue
+        additions = ending - beginning + depreciation
+        results.append(
+            f"- source={record.name}; no_disposals=true; beginning_net_book_value="
+            f"{beginning}; depreciation_charge={depreciation}; "
+            f"ending_net_book_value={ending}; calculation={ending} - {beginning} + "
+            f"{depreciation}; derived_capital_additions={additions}. Depreciation is "
+            "used only to bridge net book value and is not itself CapEx.\n"
+        )
+    return "".join(results)
 
 
 _SNIPPET_SIGNALS: tuple[str, ...] = (

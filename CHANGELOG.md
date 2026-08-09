@@ -17,6 +17,12 @@ paragraphs with a second, explicitly excluded fee bypassed deterministic FX
 normalization, and an image-only PPE note required the hidden identity `ending
 NBV - beginning NBV + depreciation` when disposals were zero.
 
+**Follow-up:** OCR pages are now merged back into their native source document
+by PDF stem. This prevents a visually decisive page with no visible account ID
+or entity name from becoming an orphaned retrieval record. Complete PPE bridges
+are calculated deterministically and injected with their exact arithmetic;
+indirect KYC ownership chains must use effective, multiplied voting interests.
+
 ### Private identifier compatibility
 
 **What changed:** Account detection now recognizes the private `TELE-*` account

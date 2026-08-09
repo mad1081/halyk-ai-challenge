@@ -8,10 +8,12 @@ from halyk_agent.benchmark import (
     BenchmarkError,
     CATEGORY_PARTITION_POLICY,
     DocumentCatalog,
+    DocumentRecord,
     SYSTEM_PROMPT,
     _apply_decisions,
     _compact_document,
     _discover_scan_image_groups,
+    _build_ppe_rollforward,
     _ocr_account_hint,
     _source_pdf_page_numbers,
     _TXN_ID,
@@ -299,6 +301,49 @@ class BenchmarkTests(unittest.TestCase):
                 _TXN_ID.search("Evidence: TXN-KC-CAP-29").group(0),
                 "TXN-KC-CAP-29",
             )
+
+    def test_unknown_account_ocr_is_merged_into_linked_native_document(self) -> None:
+        native = DocumentCatalog(
+            (
+                DocumentRecord(
+                    name="report.md",
+                    path=Path("report.md"),
+                    text="Zhaik Example JSC account ACC-1001.",
+                    sha256="native",
+                ),
+            )
+        )
+        ocr = DocumentRecord(
+            name="report.ocr.md",
+            path=Path("report.ocr.md"),
+            text="account_id: UNKNOWN\nHidden table value $123.",
+            sha256="ocr",
+        )
+
+        merged = native.with_ocr_records((ocr,))
+        bundle = merged.for_borrower("ACC-1001")
+
+        self.assertEqual(len(bundle.records), 1)
+        self.assertIn("Hidden table value $123", bundle.records[0].text)
+        self.assertIn("OCR / VISION PAGES FROM THE SAME PDF", bundle.records[0].text)
+
+    def test_ppe_rollforward_calculates_hidden_capital_additions(self) -> None:
+        record = DocumentRecord(
+            name="group-report.md",
+            path=Path("group-report.md"),
+            text=(
+                "There were no disposals of property, plant and equipment during the year.\n"
+                "Net book value at the beginning of the year | $198,135,724.83\n"
+                "Depreciation charge for the year | $22,769,549.53\n"
+                "Net book value at the end of the year | $207,419,710.88\n"
+            ),
+            sha256="report",
+        )
+
+        result = _build_ppe_rollforward((record,))
+
+        self.assertIn("derived_capital_additions=32053535.58", result)
+        self.assertIn("no_disposals=true", result)
 
     def test_large_embedded_image_routes_hybrid_page_but_logo_does_not(self) -> None:
         listing = """
