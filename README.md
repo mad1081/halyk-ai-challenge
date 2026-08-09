@@ -104,16 +104,18 @@ provider. `.env` is ignored by Git.
 
 ## Live model evaluation
 
-After extraction, run either or both providers. Scenario calls use seven worker
-threads by default. Independent scanned documents are OCRed concurrently before
-the scenario pool because their transcripts may be required evidence.
+After extraction, OpenAI is the safe default. Anthropic remains an explicit
+fallback through `--providers anthropic`, and both can be compared with
+`--providers openai anthropic`. Scenario calls use seven worker threads by
+default. Independent scanned documents are OCRed concurrently before the
+scenario pool because their transcripts may be required evidence.
 
 ```powershell
 halyk-agent live-eval .\agentic-bank-public `
   --documents-dir .\runs\public\documents `
   --scan-images-dir .\runs\public `
   --output-dir .\runs\evals\trial-001 `
-  --providers anthropic `
+  --providers openai `
   --concurrency 7
 ```
 

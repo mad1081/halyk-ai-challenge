@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.0 — OpenAI-first safe provider default
+
+**What changed:** `live-eval` and `stability-eval` now default to OpenAI only.
+Anthropic configuration and transport remain available as an explicit fallback
+or comparison backend.
+
+**Why:** The final pipeline was validated on OpenAI. A command that omits
+`--providers` must not unexpectedly call a second paid API or fail because an
+optional Anthropic key is absent.
+
 ## v3.9 — Final main-branch public smoke
 
 **Result:** A fresh full public run from the exact pushed `main` commit produced

@@ -99,6 +99,10 @@ conversations are intentionally preserved locally for audit, so `runs/` is
 Git-ignored: publishing it would redistribute challenge documents and private
 model traces. `CHANGELOG.md` and this guide provide the sanitized review record.
 
+OpenAI is the default provider used for the final pipeline. Anthropic support is
+kept as an explicit fallback and comparison backend; it is never called unless
+selected with `--providers anthropic` (or both providers are named explicitly).
+
 ## Key commands
 
 See `README.md` for complete examples. The core review commands are:

@@ -85,7 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--providers",
         nargs="+",
         choices=("openai", "anthropic"),
-        default=("openai", "anthropic"),
+        default=("openai",),
     )
 
     stability_parser = subparsers.add_parser(
@@ -101,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--providers",
         nargs="+",
         choices=("openai", "anthropic"),
-        default=("openai", "anthropic"),
+        default=("openai",),
     )
     stability_parser.add_argument("--repetitions", type=int, default=10)
     stability_parser.add_argument("--retries", type=int, default=2)
