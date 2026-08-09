@@ -4,6 +4,23 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Candidate v3 final — stable clean public score
+
+**What changed:** Combined deterministic FX normalization, evidence-backed
+formula topology, cross-metric audit cutoff handling, and displayed-geometry
+selective OCR in the isolated `candidate/v3-perfect` branch.
+
+**Result:** The final OpenAI stability harness completed 10 independent full
+runs (120 borrower calls) in 3.88 minutes with no failures. Excluding only the
+confirmed P4/6.3 public-key conflict, all 35 scored cells were exact in every
+run: clean mean/median/min/max `1.0`, standard deviation `0`, or 350/350 clean
+cell evaluations. Raw proxy score is a stable `0.972222` because the agent
+continues to follow the source evidence instead of hardcoding that conflicting
+public label.
+
+**Decision:** Stop prompt iteration at this checkpoint and hold the branch for
+human review before merging to `main` or running against private data.
+
 ### Candidate refinement — cross-metric cutoff periods
 
 **What changed:** Final audit evidence about when goods or services were
