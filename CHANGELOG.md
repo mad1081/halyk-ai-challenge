@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.8 — Document the reproducible private consensus workflow
+
+**What changed:** Added the exact blind-consensus and focused-adjudication CLI
+commands to the README, including core-pair voting, fail-closed ties, and the
+evidence policy. The example uses a generic scenario ID and contains no private
+answer.
+
 ## v3.7 — Private focused validation of the adjustment bridge
 
 **What changed:** Re-ran the corrected solver three independent times against

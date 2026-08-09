@@ -143,6 +143,37 @@ and `0/N` stable failures versus flaky cells. Exclusions never change the normal
 proxy score; they produce a second diagnostic score for confirmed public-key
 defects.
 
+For a private dataset, aggregate the independent OpenAI repetitions without
+showing any sample another sample's answer:
+
+```powershell
+halyk-agent consensus-submission `
+  .\runs\private-stability\openai `
+  .\runs\private-final\submission.json `
+  --team "YOUR TEAM" `
+  --contact-email "YOUR EMAIL"
+```
+
+Consensus votes on the inseparable `(status, actual rounded to two decimals)`
+pair, rather than mixing fields from incompatible calculations. A core tie
+fails closed for explicit adjudication. For a consensus breach, the most
+supported non-null evidence candidate is retained; compliant cells use null.
+
+To re-run only a disputed scenario against the same corpus and prompt:
+
+```powershell
+halyk-agent live-eval .\agentic-bank-private `
+  --documents-dir .\runs\private\documents `
+  --output-dir .\runs\focused-check `
+  --providers openai `
+  --scenarios B1 `
+  --team "YOUR TEAM" `
+  --contact-email "YOUR EMAIL"
+```
+
+The scenario ID above is illustrative; no borrower or answer overrides are
+embedded in the solver.
+
 ## PDF extraction
 
 The repository supports a routed cascade instead of trusting one parser:
