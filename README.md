@@ -66,6 +66,13 @@ halyk-agent inspect .\agentic-bank-public
 halyk-agent mvp .\agentic-bank-public --work-dir .\runs\public
 ```
 
+`agentic-bank-public` is the organizer-provided challenge dataset (directory or
+`.zip`). It is intentionally excluded from Git (`.gitignore`) because it is not
+this repository's data to redistribute; place it at the repo root before
+running the commands above. Without it, `inspect`/`mvp` exit cleanly with
+`error: Expected a dataset directory or ZIP archive: <path>` instead of
+failing silently.
+
 If PowerShell activation is disabled by local policy, invoke the CLI directly
 as `.\.venv\Scripts\halyk-agent.exe` in every command.
 
@@ -171,6 +178,12 @@ halyk-agent stability-eval .\agentic-bank-public `
   --concurrency 35 `
   --exclude-cell P4/6.3
 ```
+
+The default `--concurrency 35` assumes a higher provider rate-limit tier.
+Requests already retry on `429`/`5xx`/timeout with bounded exponential backoff
+and jitter (`src/halyk_agent/benchmark.py`), but a lower-tier API key may still
+exceed the per-scenario deadline under 35-way concurrency; pass a lower
+`--concurrency` in that case.
 
 OpenAI and Anthropic run in parallel, with `--concurrency` applied separately to
 each provider. `stability.json` reports score distribution, answer distribution,
