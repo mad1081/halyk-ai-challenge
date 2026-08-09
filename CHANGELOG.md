@@ -16,6 +16,14 @@
 
 **Result:** The recovered report gives Group debt of $118,447,382.61 and Group EBITDA of $32,905,118.44, so leverage is 3.5997x and activates the 3.40x conditional restriction.
 
+## v3.6 — Leakage-free stability consensus
+
+**What changed:** Added `consensus-submission`, which selects a per-cell majority over independent solver calls using the atomic `(status, rounded actual)` pair, then chooses evidence only inside the winning cluster.
+
+**Why:** Private ground truth is unavailable, while repeated samples expose a small number of semantic and evidence disagreements. Atomic majority avoids mixing a status from one calculation with an amount from another.
+
+**Safety:** Core ties fail instead of being guessed. Compliant evidence is always null; evidence ties on breach are reported and resolved conservatively.
+
 All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]

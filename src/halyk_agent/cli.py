@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from halyk_agent.benchmark import BenchmarkError, run_live_benchmark
+from halyk_agent.consensus import build_consensus_submission
 from halyk_agent.dataset import DatasetError, dataset_fingerprint, materialize_dataset
 from halyk_agent.evaluation import evaluate_submission
 from halyk_agent.extraction.backends import (
@@ -117,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="known bad public cell to omit from clean score, e.g. P4/6.3",
     )
+    consensus_parser = subparsers.add_parser(
+        "consensus-submission",
+        help="aggregate independent private stability samples into one submission",
+    )
+    consensus_parser.add_argument("stability_provider_dir", type=Path)
+    consensus_parser.add_argument("output", type=Path)
+    consensus_parser.add_argument("--team", required=True)
+    consensus_parser.add_argument("--contact-email", required=True)
     benchmark_parser.add_argument("--retries", type=int, default=1)
     benchmark_parser.add_argument(
         "--concurrency",
@@ -150,6 +159,8 @@ def main(argv: list[str] | None = None) -> int:
             return _live_eval(args)
         if args.command == "stability-eval":
             return _stability_eval(args)
+        if args.command == "consensus-submission":
+            return _consensus_submission(args)
     except (
         BenchmarkError,
         DatasetError,
@@ -307,6 +318,17 @@ def _stability_eval(args) -> int:
         for name, summary in comparison["providers"].items()
     }
     print(json.dumps(output, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _consensus_submission(args) -> int:
+    report = build_consensus_submission(
+        stability_provider_dir=args.stability_provider_dir,
+        output_path=args.output,
+        team=args.team,
+        contact_email=args.contact_email,
+    )
+    print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
 
