@@ -16,16 +16,31 @@ ACCOUNT_PATTERN = re.compile(r"\bACC-\d+(?:-\d+)?\b", re.IGNORECASE)
 PAGES_PATTERN = re.compile(r"^Pages:\s+(\d+)\s*$", re.IGNORECASE | re.MULTILINE)
 SINGLE_IMAGE_COVERAGE_THRESHOLD = 0.02
 UNION_IMAGE_COVERAGE_THRESHOLD = 0.03
+PAGE_REPLACEMENT_RATIO_THRESHOLD = 0.005
 
 
 def _low_text_page_numbers(page_texts: tuple[str, ...]) -> tuple[int, ...]:
-    """Return 1-based pages whose native text layer is effectively absent."""
+    """Return 1-based pages whose native text layer is absent or corrupted.
+
+    Digits are not evidence that prose survived PDF font decoding: a broken
+    ToUnicode map can silently drop every letter while leaving amounts, dates,
+    percentages, and IDs intact. Replacement characters are checked per page
+    so a damaged covenant page cannot hide inside an otherwise clean document.
+    """
 
     low_text = []
     for page_number, text in enumerate(page_texts, start=1):
         stripped = text.strip()
-        alphanumeric = sum(character.isalnum() for character in stripped)
-        if len(stripped) < 80 or alphanumeric < 40:
+        character_count = len(stripped)
+        alphabetic = sum(character.isalpha() for character in stripped)
+        replacement_ratio = (
+            stripped.count("\ufffd") / character_count if character_count else 1.0
+        )
+        if (
+            character_count < 80
+            or alphabetic < 40
+            or replacement_ratio > PAGE_REPLACEMENT_RATIO_THRESHOLD
+        ):
             low_text.append(page_number)
     return tuple(low_text)
 
