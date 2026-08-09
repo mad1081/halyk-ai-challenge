@@ -93,3 +93,41 @@ class ConsensusTests(unittest.TestCase):
                     team="Ship Happens",
                     contact_email="zhasserik2019@gmail.com",
                 )
+
+    def test_one_incomplete_sample_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for index, status in enumerate(("BREACH", "BREACH", None), start=1):
+                path = root / "repetitions" / f"{index:03d}" / "submission.json"
+                path.parent.mkdir(parents=True)
+                path.write_text(
+                    json.dumps(
+                        {
+                            "team": "eval",
+                            "contact_email": "eval@example.com",
+                            "model": "solver-model",
+                            "answers": {
+                                "X": {
+                                    "6.1": {
+                                        "status": status,
+                                        "actual": 1.25 if status else None,
+                                        "evidence_txn_id": None,
+                                    }
+                                }
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            output = root / "submission.json"
+            report = build_consensus_submission(
+                stability_provider_dir=root,
+                output_path=output,
+                team="Ship Happens",
+                contact_email="zhasserik2019@gmail.com",
+            )
+
+            self.assertEqual(
+                report["support"]["X/6.1"]["ignored_incomplete_samples"], 1
+            )

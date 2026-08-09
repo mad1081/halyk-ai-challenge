@@ -30,7 +30,19 @@ def build_consensus_submission(
 
     for scenario, covenant_map in consensus["answers"].items():
         for covenant in covenant_map:
-            candidates = [item["answers"][scenario][covenant] for item in submissions]
+            all_candidates = [item["answers"][scenario][covenant] for item in submissions]
+            candidates = [
+                item
+                for item in all_candidates
+                if item.get("status") in {"COMPLIANT", "BREACH"}
+                and isinstance(item.get("actual"), (int, float))
+                and not isinstance(item.get("actual"), bool)
+            ]
+            if len(candidates) <= len(submissions) // 2:
+                raise ValueError(
+                    f"Insufficient completed samples for {scenario}/{covenant}: "
+                    f"{len(candidates)}/{len(submissions)}"
+                )
             core_labels = [
                 json.dumps(
                     {"status": item["status"], "actual": round(float(item["actual"]), 2)},
@@ -76,6 +88,7 @@ def build_consensus_submission(
             support[cell_key] = {
                 "core_support": best_count,
                 "sample_count": len(candidates),
+                "ignored_incomplete_samples": len(all_candidates) - len(candidates),
                 "evidence_support_within_winning_core": evidence_count,
             }
 
