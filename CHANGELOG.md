@@ -4,6 +4,19 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Candidate refinement — cross-metric cutoff periods
+
+**What changed:** Final audit evidence about when goods or services were
+delivered is now applied to the same transaction across every period-based
+covenant unless the disclosure expressly limits its scope. Cash and invoice
+dates cannot pull an out-of-period item back into the covenant period.
+
+**Why:** The refined combined candidate scored 349/350 non-key cells across
+10 full runs. Its sole miss treated a final service-performance date as
+Revenue-only because of the note heading, then included the same future-period
+service in current Operating Expenses. This is a temporal-scope error rather
+than a category or arithmetic error.
+
 ### Experiment — deterministic FX normalization
 
 **What changed:** Added a source-grounded FX-pair extractor and a deterministic

@@ -48,6 +48,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("do not infer `related party`", CATEGORY_PARTITION_POLICY)
         self.assertIn("subsidiary, restricted, unrestricted", CATEGORY_PARTITION_POLICY)
 
+    def test_final_cutoff_period_applies_across_period_based_metrics(self) -> None:
+        self.assertIn("final audit cutoff or performance-period", CATEGORY_PARTITION_POLICY)
+        self.assertIn("every period-based covenant", CATEGORY_PARTITION_POLICY)
+        self.assertIn("cash or invoice date", CATEGORY_PARTITION_POLICY)
+        self.assertNotRegex(CATEGORY_PARTITION_POLICY, r"ACC-|TXN-|P\d+/6\.")
+
     def test_fx_normalization_preserves_direct_operating_service_category(self) -> None:
         self.assertIn(
             "Foreign-currency normalization changes only the measurement currency and amount",
