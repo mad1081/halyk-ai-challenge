@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.7 — Private focused validation of the adjustment bridge
+
+**What changed:** Re-ran the corrected solver three independent times against
+the affected private scenario after the generic threshold/add-back prompt fix.
+
+**Result:** All three runs independently returned the same core answer
+(`BREACH`, `2,632,543.20`). Two selected the threshold-ineligible adjustment
+row as counterfactual evidence; one selected the directly excessive CapEx row.
+This confirms the source-level core correction is reproducible while preserving
+the scoring-aware evidence policy. The private answers and dataset remain
+outside Git.
+
 ## v3.6 — Scoring-aware breach evidence consensus
 
 **What changed:** For a consensus `BREACH`, rank the most-supported non-null
