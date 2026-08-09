@@ -5,9 +5,10 @@ decisions. The repository keeps deterministic ingestion, extraction, financial
 calculation and evaluation separate from LLM judgment so each layer can be
 tested and replaced independently.
 
-## Current MVP
+## Solution overview
 
-The first milestone implements the deterministic foundation:
+The final solution combines a deterministic data foundation with an auditable
+LLM decision and consensus pipeline:
 
 - accepts an extracted dataset directory or ZIP archive;
 - validates the ledger, document directory and submission template;
@@ -19,10 +20,10 @@ The first milestone implements the deterministic foundation:
   embedded-image pages to vision OCR;
 - evaluates a generated submission against the public `ground_truth.json`.
 
-The live covenant solver is implemented as an auditable baseline. It retrieves
-documents by borrower account, sends one structured task per scenario, writes a
-submission, and scores it against public ground truth. The `mvp` command remains
-the deterministic no-API inspection path.
+The live covenant solver is the production decision path. It retrieves documents
+by borrower account, sends one structured task per scenario, writes a submission,
+and scores it against public ground truth. The legacy-named `mvp` command is a
+deterministic no-API dataset inspection utility; it is not the final solver.
 
 For a five-minute review path, start with
 [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md), then read
@@ -262,7 +263,7 @@ python -m unittest discover -s tests -v
 
 ## Git workflow
 
-- `main`: runnable, tested baseline.
+- `main`: final runnable and tested solution.
 - `experiment/ocr-*`: alternative extraction/OCR stacks.
 - `experiment/prompt-*`: prompt and model experiments.
 - `experiment/retrieval-*`: retrieval and document-versioning experiments.
