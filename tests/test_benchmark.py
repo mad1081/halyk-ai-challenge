@@ -169,6 +169,19 @@ class BenchmarkTests(unittest.TestCase):
 
         self.assertEqual(_low_text_page_numbers(pages), (2,))
 
+    def test_digits_cannot_hide_a_missing_native_text_layer(self) -> None:
+        digits_only = ("$1,234,567.89 42.75% 2025-12-31 7805-0042 " * 8,)
+
+        self.assertGreater(sum(char.isdigit() for char in digits_only[0]), 40)
+        self.assertEqual(sum(char.isalpha() for char in digits_only[0]), 0)
+        self.assertEqual(_low_text_page_numbers(digits_only), (1,))
+
+    def test_page_level_replacement_corruption_routes_to_ocr(self) -> None:
+        corrupted = (("Readable covenant wording and classifications. " * 20) + "\ufffd" * 8,)
+
+        self.assertGreater(sum(char.isalpha() for char in corrupted[0]), 40)
+        self.assertEqual(_low_text_page_numbers(corrupted), (1,))
+
     def test_scan_groups_and_account_hint_support_mixed_pdf_ocr(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

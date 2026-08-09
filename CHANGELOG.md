@@ -4,6 +4,24 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Native-text page corruption guard
+
+**What changed:** Page-level OCR routing now counts alphabetic characters
+instead of all alphanumeric characters and rejects pages whose replacement
+character ratio exceeds 0.5%. Digits, dates, amounts, percentages, and account
+IDs can no longer conceal a text layer that silently lost its letters.
+
+**Why:** Broken PDF ToUnicode mappings may preserve numeric glyphs while
+dropping descriptive Cyrillic text without emitting a replacement character.
+Whole-document quality checks cannot reliably expose one damaged covenant page
+inside an otherwise valid agreement.
+
+**Public-corpus audit:** With the exact production command (Poppler 25.11.0),
+the proposed alphabetic rule and the old alphanumeric rule both route the same
+seven of 843 pages. The reported failure on `1d262694c308.pdf` did not reproduce:
+its covenant page contains thousands of extracted letters. The guard is kept
+because it closes the valid failure class at zero public OCR cost.
+
 ### Candidate v3 final — stable clean public score
 
 **What changed:** Combined deterministic FX normalization, evidence-backed
