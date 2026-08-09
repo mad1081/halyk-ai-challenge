@@ -27,9 +27,7 @@ deterministic no-API dataset inspection utility; it is not the final solver.
 
 For a five-minute review path, start with
 [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md), then read
-[CHANGELOG.md](CHANGELOG.md) for the measured iteration history. Sanitized,
-machine-readable evaluation evidence is in
-[docs/evaluation/public-final-summary.json](docs/evaluation/public-final-summary.json).
+[CHANGELOG.md](CHANGELOG.md) for the measured iteration history.
 
 ## Repository map
 
@@ -44,7 +42,6 @@ machine-readable evaluation evidence is in
 | `src/halyk_agent/evaluation.py` | Public answer-key scorer used only after generation. |
 | `tests/` | Contract, extraction, OCR routing, FX, retrieval, consensus, logging, and evaluation regression tests. |
 | `docs/` | Architecture, experiments, OCR research, organizer clarifications, and reviewer guide. |
-| `docs/evaluation/` | Small sanitized public metrics and private aggregate validation counts; no documents or model transcripts. |
 | `runs/` | Generated prompts, responses, decisions, submissions, timings, and stability artifacts; intentionally Git-ignored. |
 | `.env.example` | Provider/model configuration with blank credentials. |
 
@@ -55,14 +52,22 @@ that scenario's answer.
 ## Quick start
 
 Requires Python 3.11 or newer. The core has no third-party Python dependency.
+The final repository is tested from a clean Python 3.11 environment; the local
+development environment also passes on Python 3.14.
 
 ```powershell
-py -m venv .venv
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\Activate.ps1
 
 halyk-agent inspect .\agentic-bank-public
 halyk-agent mvp .\agentic-bank-public --work-dir .\runs\public
 ```
+
+If PowerShell activation is disabled by local policy, invoke the CLI directly
+as `.\.venv\Scripts\halyk-agent.exe` in every command.
 
 The `mvp` command writes:
 
@@ -217,7 +222,25 @@ The repository supports a routed cascade instead of trusting one parser:
 5. Docling plus RapidOCR for local scanned/mixed-document and table fallback.
 6. OCRmyPDF plus `pdftotext` as an emergency local fallback, when installed.
 
-Use the already isolated AnyDoc environment:
+The minimum final-solution setup is the core `.venv`, an OpenAI key, and Poppler
+on `PATH`. Install Poppler for Windows using your normal package manager or a
+trusted binary distribution, then verify all four commands before extraction:
+
+```powershell
+Get-Command pdftotext, pdftoppm, pdfimages, pdftohtml
+```
+
+AnyDoc is an optional fast native-text path. Keep its pinned dependency in a
+separate environment because the parser is deliberately process-isolated:
+
+```powershell
+py -3.11 -m venv .venv-anydoc
+.\.venv-anydoc\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-anydoc\Scripts\python.exe -m pip install firecrawl-anydoc==0.1.6
+.\.venv-anydoc\Scripts\python.exe -m pip check
+```
+
+Then run extraction:
 
 ```powershell
 halyk-agent extract .\agentic-bank-public `
@@ -230,18 +253,25 @@ Process every PDF by omitting `--limit`. Extraction creates Markdown plus
 `scan-<pdf-stem>/page-NNNN.png` only for routed pages. All generated artifacts
 belong under `runs/`, which is intentionally ignored by Git.
 
+If AnyDoc is unavailable, pass `--no-anydoc`; the Poppler native path and routed
+vision OCR remain operational.
+
 For the recommended scanned-PDF fallback, use a separate Python 3.12
 environment and pre-download models before the private round:
 
 ```powershell
-uv venv .venv-docling --python 3.12
-uv pip install --python .\.venv-docling\Scripts\python.exe docling rapidocr onnxruntime
+py -3.12 -m venv .venv-docling
+.\.venv-docling\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-docling\Scripts\python.exe -m pip install docling rapidocr onnxruntime
 .\.venv-docling\Scripts\docling-tools.exe models download layout tableformer rapidocr `
   --rapidocr-backend-lang onnxruntime:cyrillic
 ```
 
 Then put `.venv-docling\Scripts` on `PATH` for the run, or pass the full
 Docling executable through `--docling-command`.
+
+Docling/RapidOCR and OCRmyPDF/Tesseract are optional resilience layers, not
+requirements for installing the core package or running its test suite.
 
 AnyDoc 0.1.6 is treated as an untrusted parser dependency and is always run in
 a child process. See [architecture notes](docs/ARCHITECTURE.md) for the reason

@@ -7,7 +7,7 @@ Research date: 2026-08-09.
 Do not make AnyDoc the only parser. Use a tiered path:
 
 ```text
-AnyDoc (MVP) / direct current pdf-inspector (target)
+AnyDoc (isolated fast path) / pdftotext native fallback
   -> per-page native-text + embedded-image routing
   -> selective provider vision OCR (parallel by document)
   -> Docling pdf-aware regions + RapidOCR Cyrillic local fallback
@@ -15,10 +15,10 @@ AnyDoc (MVP) / direct current pdf-inspector (target)
 ```
 
 This keeps the common text-native path fast while still handling real scans,
-mixed PDFs and tables during the three-hour private round. On the public set it
-found all four scanned/mixed documents (seven routed pages); adding the three
-previously missed mixed-document transcripts raised the proxy from 0.8806 to
-0.9167.
+mixed PDFs and tables. During the v2.2 experiment it found all four
+scanned/mixed public documents (seven routed pages); adding the three previously
+missed mixed-document transcripts raised that iteration's proxy from 0.8806 to
+0.9167. Final solution metrics are recorded in `EXPERIMENTS.md`.
 
 ## AnyDoc findings
 
@@ -33,8 +33,8 @@ previously missed mixed-document transcripts raised the proxy from 0.8806 to
 The current `pdf-inspector` source is a better future PDF-specific Tier 0: it
 classifies text/scanned/mixed/image PDFs, reports `pages_needing_ocr`, preserves
 page boundaries, supports tables, and already uses `lopdf` 0.42.0. Its current
-Python path requires a Rust/maturin build, so the MVP retains AnyDoc while that
-adapter is evaluated.
+Python path requires a Rust/maturin build, so the final solution retains AnyDoc
+behind isolation while using the other implemented backends for fallback.
 
 Primary sources:
 
@@ -82,8 +82,8 @@ an API key/network are required, and the service has file/plan constraints.
 Parser exit code and non-empty output are insufficient. Trigger a fallback on:
 
 - timeout, unsupported/encrypted document or parser error;
-- fewer than 200 document characters in the MVP;
-- fewer than 40 alphanumeric characters or 80 total characters on a page;
+- fewer than 200 document characters at the document-level gate;
+- fewer than 40 alphabetic characters or 80 total characters on a page;
 - a substantial embedded raster image, even when the same page also has ample
   native text (covers scanned tables, stamps, signatures, and exhibits);
 - replacement-character ratio above 0.5%;
@@ -106,8 +106,8 @@ If extractors disagree on identifiers or financial numbers, retain both
 outputs and route the document to the stronger parser rather than accepting
 the longest text blindly.
 
-The `experiment/ocr-router-v3` branch measures substantial images by their
-displayed bounding boxes rather than intrinsic pixel dimensions. It routes a
+The merged geometry-aware router measures substantial images by their displayed
+bounding boxes rather than intrinsic pixel dimensions. It routes a
 single image at 2% page coverage or multiple tiles at 3% union coverage and
 keeps the intrinsic `pdfimages` rule only as a tool-availability fallback.
 This catches low-DPI rasters stretched across a text-rich page and avoids

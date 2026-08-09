@@ -60,7 +60,7 @@ private answer key.
 
 ## Evaluation evidence
 
-- 67 deterministic regression tests pass on the final branch.
+- 69 deterministic regression tests pass on the final branch.
 - The final public ten-repetition baseline had clean mean/min/max `1.0000` with
   zero variance after excluding one confirmed public-key interpretation defect.
 - A fresh full public smoke from the final `main` reproduced the same clean
@@ -74,11 +74,6 @@ The raw public score remains `0.9722` because the published key for `P4/6.3`
 predates the organizer's later generic related-party-payment clarification. Both
 raw and clean metrics are retained in the iteration history instead of hiding
 the discrepancy.
-
-The exact sanitized metrics, token counts, timings, and hashes of the original
-local evaluation artifacts are committed in
-`docs/evaluation/public-final-summary.json`. Full raw logs remain local for the
-confidentiality reasons below.
 
 ## Runtime audit artifacts
 

@@ -1,5 +1,10 @@
 # Changelog
 
+Entries below are chronological snapshots of what was known at each iteration.
+Words such as `pending` in an older entry describe that historical checkpoint,
+not the current branch; completed validation and merge decisions appear in the
+newer entries above and in `docs/EXPERIMENTS.md`.
+
 ## v4.0 — OpenAI-first safe provider default
 
 **What changed:** `live-eval` and `stability-eval` now default to OpenAI only.

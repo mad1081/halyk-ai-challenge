@@ -6,14 +6,14 @@ Record comparable experiments here. Generated raw artifacts stay in `runs/`.
 |---|---|---|---|---:|---:|---|
 | fx-normalization-005 | `dde6bf6`, refined in `a2d0ae2` (`main`) | public-v1 | Deterministic auditor FX-pair extraction, foreign-ledger normalization, and retained settlement pairs | validated in final 10x: 0.9722 raw / 1.0000 clean | 3.88 min combined run | Validated as part of the final candidate: 120/120 tasks, zero clean-score variance; merged into `main` |
 | baseline-000 | `main` | public-v1 | Deterministic ingestion/eval scaffold | N/A | N/A | Foundation |
-| public-openai-001 | working tree | `f4fe39f...` | `gpt-5.6-sol`, original sequential live baseline | 0.7861 | 13.92 min | Current accuracy leader; rerun with concurrency later |
+| public-openai-001 | working tree | `f4fe39f...` | `gpt-5.6-sol`, original sequential live baseline | 0.7861 | 13.92 min | Then-current accuracy leader; rerun with concurrency later |
 | public-anthropic-001 | working tree | `f4fe39f...` | `claude-sonnet-5`, 7 concurrent scenario calls | 0.7000 | 10.07 min | Complete baseline; improve retrieval/calculation before model tuning |
 | public-openai-stability-10x-001 | working tree | public-v1 | `gpt-5.6-sol`, 10 repetitions, 35-worker bounded pool, one shared OCR pass | 0.7848 mean (0.7167-0.8417) | 7.43 min | Frozen v1 baseline; 120/120 solver tasks completed |
 | public-anthropic-stability-10x-001 | working tree | public-v1 | `claude-sonnet-5`, 10 repetitions, 35-worker bounded pool, one shared OCR pass | 0.7219 mean (0.6278-0.7806) | 21.18 min | Frozen v1 baseline; 119/120 tasks completed, one P3 exhausted retries |
 | public-openai-v2-001 | working tree | public-v1 | Entity-linked retrieval + compact evidence, initial 300s deadline | 0.6778 | partial | Three technical failures; successful cells averaged 0.9037 |
 | public-openai-v2-002 | working tree | public-v1 | 16K output, 600s deadline, ratio/EBITDA rules | 0.8083 | 3.20 min | Stable 12/12; exposed paragraph-neighbor compaction bug |
 | public-openai-v2.1-003 | working tree | public-v1 | Preserve operative neighboring paragraphs + stronger evidence test | 0.8806 | 3.10 min | 30/36 perfect; first run above v1 10x maximum |
-| public-openai-v2.2-004 | working tree | public-v1 | Page-level mixed-PDF OCR + category discipline; 4 OCR docs concurrent | 0.9167 (clean 0.9429) | 2.32 min | Winner: 33/36 perfect; retain and add verifier |
+| public-openai-v2.2-004 | working tree | public-v1 | Page-level mixed-PDF OCR + category discipline; 4 OCR docs concurrent | 0.9167 (clean 0.9429) | 2.32 min | Then-best result: 33/36 perfect; retain and add verifier |
 | public-openai-final-stability-010 | `7015a9c` | public-v1 | Final extraction, retrieval, deterministic calculations, prompt policy, and blind repetition harness | 0.9722 raw / 1.0000 clean, 10/10 identical | 3.88 min | Final validation: 120/120 tasks, clean mean/min/max 1.0000, zero variance |
 | public-openai-final-smoke-011 | `main` | public-v1 | Fresh full run after the final generic adjustment-bridge change | 0.9722 raw / 1.0000 clean | 1.97 min | 35/35 non-defective cells perfect; no post-merge regression |
 

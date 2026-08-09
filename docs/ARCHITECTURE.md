@@ -12,7 +12,7 @@
 4. **Replaceable:** OCR, LLM, retrieval and prompt variants are adapters behind
    stable schemas.
 
-## Target pipeline
+## Implemented pipeline
 
 ```text
 dataset ZIP/directory
@@ -24,7 +24,7 @@ dataset ZIP/directory
   -> structured covenant and supporting-fact extraction
   -> transaction classification
   -> deterministic calculation
-  -> independent decision review
+  -> independent repetitions + atomic consensus
   -> schema validation
   -> submission.json
 ```
@@ -33,13 +33,13 @@ dataset ZIP/directory
 
 Any successful parser process can still return useless text. Selection is
 therefore based on content quality, not exit code alone. The current gate uses
-character count, alphanumeric ratio, replacement-character ratio and line
-count. It also checks native text per page and routes substantial raster
-regions, so a scanned table cannot hide inside an otherwise searchable PDF.
-Later versions will add structured table preservation, expected identifier
-recall and cross-parser fact agreement.
+character count, alphabetic-character count, replacement-character ratio and
+line count. It also checks native text per page and routes substantial raster
+regions by displayed page coverage, so a scanned table cannot hide inside an
+otherwise searchable PDF. Financial identifiers and amounts are retained in
+the evidence corpus for source-grounded comparison by the solver.
 
-The MVP backends are:
+The implemented backends are:
 
 - **AnyDoc:** fast Markdown for text-native PDFs, isolated in a subprocess.
 - **pdftotext:** independent native fallback for text-native PDFs.
@@ -53,20 +53,18 @@ The MVP backends are:
 AnyDoc 0.1.6 delegates PDF parsing to `pdf-inspector` and does not perform OCR.
 Its locked `lopdf` 0.41.0 dependency has a published denial-of-service issue,
 so it must not run in-process on arbitrary uploads. For this synthetic corpus
-we retain it behind per-file process isolation and timeouts while evaluating a
-newer direct `pdf-inspector` build and OCR alternatives.
+it remains behind per-file process isolation and timeouts; independent native,
+local OCR, and provider-vision backends cover its failure modes.
 
 ## Run artifacts
 
 Generated files live under `runs/<run-id>/` and never enter Git. Source code,
-prompts, schemas and experiment summaries are versioned. A future run manifest
-will include:
+schemas and experiment summaries are versioned. Current run artifacts record:
 
-- Git commit SHA;
 - dataset SHA-256 fingerprint;
 - model and reasoning settings;
-- prompt/schema versions;
-- extractor versions and per-document attempts;
+- exact prompts, schemas, retrieved corpus and structured decisions;
+- per-document extraction attempts and provenance;
 - latency/token usage;
 - public evaluation score.
 
