@@ -9,6 +9,7 @@ from halyk_agent.benchmark import (
     CATEGORY_PARTITION_POLICY,
     DocumentCatalog,
     SYSTEM_PROMPT,
+    _apply_decisions,
     _compact_document,
     _discover_scan_image_groups,
     _ocr_account_hint,
@@ -24,6 +25,51 @@ from halyk_agent.extraction.pipeline import (
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_submission_cells_match_template_shape_exactly(self) -> None:
+        submission = {
+            "team": "team-name",
+            "contact_email": "team@example.com",
+            "model": "model-name",
+            "answers": {
+                "P1": {
+                    "6.1": {
+                        "status": None,
+                        "actual": None,
+                        "evidence_txn_id": None,
+                    }
+                }
+            },
+        }
+        decisions = {
+            "6.1": {
+                "status": "BREACH",
+                "actual": -1.234,
+                "evidence_txn_id": "TXN-P1-0001",
+                "explanation": "internal audit detail",
+                "sources": ["document.md"],
+            }
+        }
+
+        _apply_decisions(submission, "P1", ("6.1",), decisions)
+
+        self.assertEqual(
+            submission,
+            {
+                "team": "team-name",
+                "contact_email": "team@example.com",
+                "model": "model-name",
+                "answers": {
+                    "P1": {
+                        "6.1": {
+                            "status": "BREACH",
+                            "actual": 1.23,
+                            "evidence_txn_id": "TXN-P1-0001",
+                        }
+                    }
+                },
+            },
+        )
+
     def test_private_generation_requires_submission_identity_before_api(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
