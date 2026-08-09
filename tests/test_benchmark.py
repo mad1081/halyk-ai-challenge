@@ -14,6 +14,7 @@ from halyk_agent.benchmark import (
     _discover_scan_image_groups,
     _ocr_account_hint,
     _source_pdf_page_numbers,
+    _TXN_ID,
     benchmark_schema,
     run_live_benchmark,
 )
@@ -267,6 +268,28 @@ class BenchmarkTests(unittest.TestCase):
             self.assertEqual(len(groups), 1)
             self.assertEqual([path.name for path in groups[0]], ["page-0002.png"])
             self.assertEqual(_ocr_account_hint(catalog, groups[0]), "ACC-9001")
+
+    def test_private_account_and_multisegment_transaction_ids_are_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            documents = root / "documents"
+            documents.mkdir()
+            (documents / "kc.md").write_text(
+                "Borrower account TELE-4471; evidence TXN-KC-CAP-29.",
+                encoding="utf-8",
+            )
+            scan = root / "scan-kc"
+            scan.mkdir()
+            (scan / "page-0001.png").write_bytes(b"not-a-real-image")
+
+            catalog = DocumentCatalog.from_directory(documents)
+            groups = _discover_scan_image_groups(root)
+
+            self.assertEqual(_ocr_account_hint(catalog, groups[0]), "TELE-4471")
+            self.assertEqual(
+                _TXN_ID.search("Evidence: TXN-KC-CAP-29").group(0),
+                "TXN-KC-CAP-29",
+            )
 
     def test_large_embedded_image_routes_hybrid_page_but_logo_does_not(self) -> None:
         listing = """

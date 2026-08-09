@@ -4,6 +4,16 @@ All notable implementation changes and experiment decisions are recorded here.
 
 ## [Unreleased]
 
+### Private identifier compatibility
+
+**What changed:** Account detection now recognizes the private `TELE-*` account
+prefix in addition to `ACC-*`, and transaction detection accepts multi-segment
+IDs such as `TXN-KC-CAP-29` while retaining the public format.
+
+**Why:** The private ledger introduced valid identifiers outside the public
+dataset's narrower naming convention. Without this change, OCR account hints
+and evidence-paragraph prioritization could miss those records.
+
 ### Private generation without answer-key leakage
 
 **What changed:** `live-eval` no longer requires `ground_truth.json`. Public

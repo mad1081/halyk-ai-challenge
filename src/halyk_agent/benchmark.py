@@ -163,8 +163,10 @@ _LEGAL_ENTITY = re.compile(
     r"(?:\s+(?:[A-Z][A-Za-z0-9&'’.,()/-]*|of|and|the|for)){1,7}\s+"
     r"(?:JSC|LLP|LLC|Ltd|LTD|PLC|Inc\.))"
 )
-_ACCOUNT_ID = re.compile(r"\bACC-\d+\b", re.IGNORECASE)
-_TXN_ID = re.compile(r"\bTXN-[A-Za-z0-9]+-\d+\b", re.IGNORECASE)
+_ACCOUNT_ID = re.compile(r"\b(?:ACC|TELE)-\d+\b", re.IGNORECASE)
+_TXN_ID = re.compile(
+    r"\bTXN-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-\d+\b", re.IGNORECASE
+)
 
 _DOCUMENT_POSITIVE_SIGNALS: tuple[tuple[str, int], ...] = (
     ("consolidated annual report", 24),

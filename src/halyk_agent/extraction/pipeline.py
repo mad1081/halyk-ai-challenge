@@ -12,7 +12,7 @@ from halyk_agent.dataset import DatasetLayout
 from halyk_agent.extraction.backends import CascadeExtractor
 
 
-ACCOUNT_PATTERN = re.compile(r"\bACC-\d+(?:-\d+)?\b", re.IGNORECASE)
+ACCOUNT_PATTERN = re.compile(r"\b(?:ACC|TELE)-\d+(?:-\d+)?\b", re.IGNORECASE)
 PAGES_PATTERN = re.compile(r"^Pages:\s+(\d+)\s*$", re.IGNORECASE | re.MULTILINE)
 SINGLE_IMAGE_COVERAGE_THRESHOLD = 0.02
 UNION_IMAGE_COVERAGE_THRESHOLD = 0.03
